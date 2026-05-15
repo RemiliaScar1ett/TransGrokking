@@ -4,3 +4,4 @@ env/
 packing/
 paper/
 runs/
+.gitignore
