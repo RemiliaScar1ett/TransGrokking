@@ -1,4 +1,4 @@
-"""CE-only deterministic full-batch training."""
+"""CE-only deterministic full-batch training and safe resume lifecycle."""
 
 from __future__ import annotations
 
@@ -6,8 +6,9 @@ import hashlib
 import json
 import subprocess
 import traceback
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import torch
 from torch import nn
@@ -17,17 +18,20 @@ from transgrokking.config import ExperimentConfig
 from transgrokking.data import generate_modular_addition, split_artifact
 from transgrokking.models import TransparentTransformer
 from transgrokking.training.artifacts import (
+    add_manifest_checkpoint,
     append_scalar,
     create_run_dir,
+    load_manifest,
+    scalar_steps,
     write_status,
 )
-from transgrokking.training.checkpoint import load_checkpoint, save_checkpoint
+from transgrokking.training.checkpoint import load_checkpoint, read_checkpoint, save_checkpoint
+from transgrokking.training.optimizer import build_adamw, optimizer_group_metadata
 from transgrokking.utils.atomic import torch_save, write_json, write_yaml
-from transgrokking.utils.doctor import (
-    collect_doctor_report,
-    validate_doctor_report,
-)
+from transgrokking.utils.doctor import collect_doctor_report, validate_doctor_report
 from transgrokking.utils.reproducibility import configure_reproducibility
+
+ResumeMode = Literal["auto", "inplace", "branch"]
 
 
 def build_model(config: ExperimentConfig) -> TransparentTransformer:
@@ -43,6 +47,7 @@ def build_model(config: ExperimentConfig) -> TransparentTransformer:
         dropout=model.dropout,
         activation=model.activation,
         norm_first=model.norm_first,
+        final_norm=model.final_norm,
     )
 
 
@@ -61,6 +66,17 @@ def _config_hash(config: ExperimentConfig) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
+def _read_json(path: Path) -> dict[str, Any]:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _update_metadata(run_dir: Path, **updates: Any) -> None:
+    path = run_dir / "metadata.json"
+    metadata = _read_json(path) if path.exists() else {"schema_version": 2, "run_id": run_dir.name}
+    metadata.update(updates)
+    write_json(path, metadata)
+
+
 def _evaluate(
     model: nn.Module,
     inputs: torch.Tensor,
@@ -71,114 +87,196 @@ def _evaluate(
     with torch.no_grad():
         logits = model(inputs.index_select(0, indices))[:, -1]
         targets = labels.index_select(0, indices)
-        loss = F.cross_entropy(logits, targets).item()
-        accuracy = (logits.argmax(dim=-1) == targets).float().mean().item()
-    return loss, accuracy
+        return (
+            F.cross_entropy(logits, targets).item(),
+            (logits.argmax(dim=-1) == targets).float().mean().item(),
+        )
 
 
-def _manifest(run_dir: Path, steps: list[int]) -> None:
-    write_json(
-        run_dir / "checkpoints" / "manifest.json",
-        {
-            "schema_version": 1,
-            "checkpoints": [
-                {"step": step, "path": f"step_{step:06d}.pt"} for step in sorted(set(steps))
-            ],
-        },
+def _save_regular_checkpoint(
+    run_dir: Path,
+    model: nn.Module,
+    optimizer: torch.optim.Optimizer,
+    config: ExperimentConfig,
+    split_hash: str,
+    global_step: int,
+) -> Path:
+    path = run_dir / "checkpoints" / f"step_{global_step:06d}.pt"
+    save_checkpoint(path, model, optimizer, config, split_hash, global_step)
+    add_manifest_checkpoint(run_dir, global_step, path)
+    return path
+
+
+def _resume_plan(
+    config: ExperimentConfig, checkpoint_path: Path, requested_mode: ResumeMode
+) -> tuple[ResumeMode, Path, int, dict[str, Any]]:
+    if requested_mode not in {"auto", "inplace", "branch"}:
+        raise ValueError(f"resume_mode: expected auto, inplace, or branch, got {requested_mode!r}")
+    parent_run = checkpoint_path.parents[1]
+    status_path = parent_run / "status.json"
+    if not checkpoint_path.is_file() or not status_path.is_file():
+        raise ValueError("resume checkpoint is not inside a valid run directory")
+    entries = load_manifest(parent_run)
+    matching = [entry for entry in entries if entry["path"] == checkpoint_path.name]
+    if not matching:
+        raise ValueError("resume checkpoint is not listed in its parent manifest")
+    payload = read_checkpoint(checkpoint_path)
+    parent_step = int(payload["global_step"])
+    if payload.get("scientific_config_hash") != config.scientific_hash():
+        raise ValueError("checkpoint scientific config hash does not match requested configuration")
+    if config.optimization.max_steps <= parent_step:
+        raise ValueError(
+            "optimization.max_steps must be strictly greater than checkpoint global_step: "
+            f"{config.optimization.max_steps} <= {parent_step}"
+        )
+    status = _read_json(status_path)
+    latest = bool(entries) and int(entries[-1]["step"]) == parent_step
+    scalars = scalar_steps(parent_run / "metrics" / "scalars.jsonl")
+    append_safe = not scalars or scalars[-1] <= parent_step
+    inplace_allowed = status.get("state") == "interrupted" and latest and append_safe
+    if requested_mode == "inplace" and not inplace_allowed:
+        raise ValueError(
+            "inplace resume requires an interrupted run's latest checkpoint "
+            "and no newer scalar step"
+        )
+    resolved_mode: ResumeMode = (
+        "inplace" if requested_mode == "auto" and inplace_allowed else requested_mode
     )
+    if resolved_mode == "auto":
+        resolved_mode = "branch"
+    return resolved_mode, parent_run, parent_step, status
 
 
 def train(
     config: ExperimentConfig,
     resume_from: str | Path | None = None,
     *,
+    resume_mode: ResumeMode = "auto",
     stop_after: int | None = None,
 ) -> Path:
-    """Run or resume CE-only full-batch training and return the run directory.
-
-    ``stop_after`` is a test-only interruption boundary expressed as a global step.
-    """
-    configure_reproducibility(config.optimization.seed, config.optimization.deterministic)
-    device = torch.device(config.optimization.device)
-    report = collect_doctor_report()
-    if config.hardware.formal_run:
-        errors = validate_doctor_report(
-            report,
-            require_cuda=True,
-            expected_device=config.hardware.expected_device,
-            expected_vram_gb=config.hardware.expected_vram_gb,
-        )
-        if errors:
-            raise RuntimeError("formal-run doctor failed: " + "; ".join(errors))
-    if device.type == "cuda" and not torch.cuda.is_available():
-        raise RuntimeError(f"configured device {device} is unavailable")
-
-    data = generate_modular_addition(
-        config.task.modulus, config.task.train_fraction, config.task.split_seed
-    )
-    config_hash = _config_hash(config)
+    """Run or resume training, returning the in-place or child run directory."""
     checkpoint_path = Path(resume_from).resolve() if resume_from is not None else None
-    run_dir = (
-        checkpoint_path.parents[1]
-        if checkpoint_path is not None
-        else create_run_dir(config.logging.runs_dir, config_hash)
-    )
-    status_exists = (run_dir / "status.json").exists()
-    if checkpoint_path is not None and not status_exists:
-        raise ValueError("resume checkpoint is not inside a valid run directory")
-
-    if checkpoint_path is None:
-        write_yaml(run_dir / "config.resolved.yaml", config.to_dict())
-        torch_save(
-            run_dir / "split.pt",
-            split_artifact(data, config.task.modulus, config.task.split_seed),
+    parent_run: Path | None = None
+    parent_step: int | None = None
+    resolved_mode: ResumeMode | None = None
+    if checkpoint_path is not None:
+        resolved_mode, parent_run, parent_step, _ = _resume_plan(
+            config, checkpoint_path, resume_mode
         )
-        write_json(
-            run_dir / "metadata.json",
-            {
-                "schema_version": 1,
-                "run_id": run_dir.name,
-                "git_commit": _git_commit(),
-                "config_hash": config_hash,
-                "split_hash": data.split_hash,
-                "doctor": report.to_dict(),
-                "precision": "fp32",
-                "allow_tf32": False,
-                "use_amp": False,
-                "formal_run": config.hardware.formal_run,
-            },
-        )
-    write_status(run_dir, "running", global_step=0)
+    elif resume_mode != "auto":
+        raise ValueError("resume_mode is only valid with resume_from")
 
-    model = build_model(config).to(device=device, dtype=torch.float32)
-    optimizer = torch.optim.AdamW(
-        model.parameters(),
-        lr=config.optimization.learning_rate,
-        weight_decay=config.optimization.weight_decay,
-    )
-    inputs = data.inputs.to(device)
-    labels = data.labels.to(device)
-    train_indices = data.train_indices.to(device)
-    test_indices = data.test_indices.to(device)
-    completed_steps: list[int] = []
+    config_hash = _config_hash(config)
+    if resolved_mode == "inplace":
+        assert parent_run is not None
+        run_dir = parent_run
+        write_status(run_dir, "initializing", global_step=parent_step, resume_mode="inplace")
+    else:
+        run_dir = create_run_dir(config.logging.runs_dir, config_hash)
 
+    model: nn.Module | None = None
+    optimizer: torch.optim.Optimizer | None = None
+    global_step = parent_step or 0
+    device = torch.device(config.optimization.device)
+    split_hash: str | None = None
     try:
+        report = collect_doctor_report()
+        if config.hardware.formal_run:
+            errors = validate_doctor_report(
+                report,
+                require_cuda=True,
+                expected_device=config.hardware.expected_device,
+                expected_vram_gb=config.hardware.expected_vram_gb,
+            )
+            if errors:
+                raise RuntimeError("formal-run doctor failed: " + "; ".join(errors))
+        if device.type == "cuda" and not torch.cuda.is_available():
+            raise RuntimeError(f"configured device {device} is unavailable")
+
+        configure_reproducibility(config.optimization.seed, config.optimization.deterministic)
+        data = generate_modular_addition(
+            config.task.modulus, config.task.train_fraction, config.task.split_seed
+        )
+        split_hash = data.split_hash
+        write_yaml(run_dir / "config.resolved.yaml", config.to_dict())
+        if resolved_mode != "inplace":
+            torch_save(
+                run_dir / "split.pt",
+                split_artifact(data, config.task.modulus, config.task.split_seed),
+            )
+        elif not (run_dir / "split.pt").is_file():
+            raise ValueError("in-place run is missing split.pt")
+
+        parent_fields: dict[str, object] = {}
+        if resolved_mode == "branch":
+            assert (
+                parent_run is not None and checkpoint_path is not None and parent_step is not None
+            )
+            parent_fields = {
+                "parent_run_id": parent_run.name,
+                "parent_checkpoint": str(checkpoint_path),
+                "parent_global_step": parent_step,
+            }
+        base_metadata = {
+            "schema_version": 2,
+            "run_id": run_dir.name,
+            "git_commit": _git_commit(),
+            "config_hash": config_hash,
+            "scientific_config_hash": config.scientific_hash(),
+            "scientific_config": config.scientific_dict(),
+            "split_hash": split_hash,
+            "doctor": report.to_dict(),
+            "precision": "fp32",
+            "allow_tf32": False,
+            "use_amp": False,
+            "formal_run": config.hardware.formal_run,
+            "resume_mode": resolved_mode,
+            **parent_fields,
+        }
+        if resolved_mode == "inplace":
+            old_metadata = _read_json(run_dir / "metadata.json")
+            history = list(old_metadata.get("resume_history", []))
+            history.append(
+                {
+                    "checkpoint": str(checkpoint_path),
+                    "global_step": parent_step,
+                    "target_max_steps": config.optimization.max_steps,
+                }
+            )
+            base_metadata["resume_history"] = history
+        write_json(run_dir / "metadata.json", base_metadata)
+
+        model = build_model(config)
+        optimizer, _ = build_adamw(model, config.optimization)
+        _update_metadata(run_dir, optimizer_parameter_groups=optimizer_group_metadata(optimizer))
+        model = model.to(device=device, dtype=torch.float32)
+        inputs = data.inputs.to(device)
+        labels = data.labels.to(device)
+        train_indices = data.train_indices.to(device)
+        test_indices = data.test_indices.to(device)
+
         if checkpoint_path is None:
             global_step = 0
-            initial = run_dir / "checkpoints" / "step_000000.pt"
-            save_checkpoint(initial, model, optimizer, config, data.split_hash, global_step)
-            completed_steps.append(0)
-            _manifest(run_dir, completed_steps)
+            _save_regular_checkpoint(run_dir, model, optimizer, config, split_hash, global_step)
         else:
             global_step = load_checkpoint(
-                checkpoint_path, model, optimizer, config, data.split_hash, device
+                checkpoint_path, model, optimizer, config, split_hash, device
             )
-            manifest_path = run_dir / "checkpoints" / "manifest.json"
-            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-            completed_steps = [int(item["step"]) for item in manifest["checkpoints"]]
-            write_status(
-                run_dir, "running", global_step=global_step, resumed_from=str(checkpoint_path)
-            )
+            if resolved_mode == "branch":
+                _save_regular_checkpoint(run_dir, model, optimizer, config, split_hash, global_step)
+            else:
+                load_manifest(run_dir)
+                scalar_steps(run_dir / "metrics" / "scalars.jsonl")
+
+        if device.type == "cuda":
+            torch.cuda.reset_peak_memory_stats(device)
+        write_status(
+            run_dir,
+            "running",
+            global_step=global_step,
+            resumed_from=str(checkpoint_path) if checkpoint_path else None,
+            resume_mode=resolved_mode,
+        )
 
         while global_step < config.optimization.max_steps:
             model.train()
@@ -212,10 +310,7 @@ def train(
             final_step = global_step == config.optimization.max_steps
             interrupted_step = stop_after is not None and global_step >= stop_after
             if checkpoint_due or final_step or interrupted_step:
-                path = run_dir / "checkpoints" / f"step_{global_step:06d}.pt"
-                save_checkpoint(path, model, optimizer, config, data.split_hash, global_step)
-                completed_steps.append(global_step)
-                _manifest(run_dir, completed_steps)
+                _save_regular_checkpoint(run_dir, model, optimizer, config, split_hash, global_step)
             if interrupted_step:
                 write_status(
                     run_dir, "interrupted", global_step=global_step, reason="test boundary"
@@ -224,6 +319,13 @@ def train(
 
         peak_allocated = torch.cuda.max_memory_allocated(device) if device.type == "cuda" else 0
         peak_reserved = torch.cuda.max_memory_reserved(device) if device.type == "cuda" else 0
+        _update_metadata(
+            run_dir,
+            completed_at=datetime.now(timezone.utc).isoformat(),
+            final_global_step=global_step,
+            max_memory_allocated=peak_allocated,
+            max_memory_reserved=peak_reserved,
+        )
         write_status(
             run_dir,
             "completed",
@@ -233,17 +335,29 @@ def train(
         )
         return run_dir
     except KeyboardInterrupt:
-        write_status(run_dir, "interrupted", global_step=locals().get("global_step", 0))
+        emergency: str | None = None
+        if model is not None and optimizer is not None and split_hash is not None:
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+            emergency_path = (
+                run_dir / "checkpoints" / f"emergency_step_{global_step:06d}_{stamp}.pt"
+            )
+            save_checkpoint(emergency_path, model, optimizer, config, split_hash, global_step)
+            emergency = str(emergency_path)
+        write_status(
+            run_dir, "interrupted", global_step=global_step, emergency_checkpoint=emergency
+        )
         raise
     except Exception as error:
         details: dict[str, Any] = {
-            "global_step": locals().get("global_step", 0),
+            "global_step": global_step,
             "error_type": type(error).__name__,
             "error": str(error),
             "traceback": traceback.format_exc(),
         }
-        if isinstance(error, torch.cuda.OutOfMemoryError) and torch.cuda.is_available():
-            details["max_memory_allocated"] = torch.cuda.max_memory_allocated()
-            details["max_memory_reserved"] = torch.cuda.max_memory_reserved()
+        if device.type == "cuda" and torch.cuda.is_available():
+            details["max_memory_allocated"] = torch.cuda.max_memory_allocated(device)
+            details["max_memory_reserved"] = torch.cuda.max_memory_reserved(device)
         write_status(run_dir, "failed", **details)
+        if (run_dir / "metadata.json").exists():
+            _update_metadata(run_dir, failure=details)
         raise

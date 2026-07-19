@@ -39,7 +39,11 @@ def _generate_data(args: argparse.Namespace) -> int:
 
 
 def _train(args: argparse.Namespace) -> int:
-    run_dir = train(load_config(args.config), resume_from=args.resume_from)
+    run_dir = train(
+        load_config(args.config),
+        resume_from=args.resume_from,
+        resume_mode=args.resume_mode,
+    )
     print(run_dir)
     return 0
 
@@ -59,6 +63,7 @@ def build_parser() -> argparse.ArgumentParser:
     training = subparsers.add_parser("train")
     training.add_argument("--config", required=True)
     training.add_argument("--resume-from")
+    training.add_argument("--resume-mode", choices=("auto", "inplace", "branch"), default="auto")
     training.set_defaults(handler=_train)
     return parser
 

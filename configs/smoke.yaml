@@ -10,10 +10,16 @@ model:
   dropout: 0.0
   activation: relu
   norm_first: true
+  final_norm: false
 optimization:
   optimizer: adamw
   learning_rate: 0.001
   weight_decay: 0.1
+  decay_policy:
+    matrix_weights: true
+    embeddings: true
+    biases: false
+    layer_norm: false
   max_steps: 3
   precision: fp32
   allow_tf32: false
@@ -33,6 +39,5 @@ loss:
 logging:
   eval_interval: 1
   checkpoint_interval: 1
-  optimizer_checkpoint_interval: 1
   activation_steps: []
   runs_dir: runs

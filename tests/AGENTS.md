@@ -110,6 +110,9 @@
 - optimizer state 恢复；
 - RNG state 恢复；
 - 连续训练和中断恢复在容差内一致；
+- 提高执行配置中的 `max_steps` 后可恢复，科学配置变化必须拒绝；
+- completed run 与非最新 checkpoint 恢复必须创建可追踪 child run；
+- manifest step 唯一、scalar step 严格递增且已有 checkpoint 不被覆盖；
 - split hash 不匹配时拒绝加载；
 - 原子写入不会留下伪装成有效 checkpoint 的半成品。
 
@@ -135,6 +138,7 @@ device=cpu
 - scalar step 单调；
 - run 可被 evaluator 和 analyzer 读取；
 - resume 后 global step 正确增加。
+- 独立 `cuda` marker 单步测试记录目标 GPU peak allocated/reserved VRAM。
 
 ### 干预
 

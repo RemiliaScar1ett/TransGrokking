@@ -71,6 +71,7 @@ y=(a+b)\bmod p.
 - 支持返回最终 logits；
 - 支持按名称注册 hook；
 - 支持捕获 per-head output 和 MLP activation；
+- final LayerNorm 由 `model.final_norm` 显式控制，基线为 `false`；
 - 所有张量 shape 在 docstring 中说明；
 - 初始化完全受 seed 控制。
 
@@ -268,6 +269,8 @@ data_decay_cosine
 零范数和零梯度情况需要安全处理。任何近似分解都要在返回 metadata 中标记。
 
 LayerNorm 与 bias 是否施加 decay 必须由配置明确决定。默认配置应提供单独 parameter groups。
+parameter group 必须拥有稳定名称及完整参数名清单，并写入 metadata 与 checkpoint
+兼容性签名。所有可训练参数必须恰好归入一个 group。
 
 ## 13. Checkpoint
 
@@ -280,6 +283,11 @@ checkpoint 写入包含版本号。加载时验证：
 - 参数 shape；
 - optimizer 类型；
 - global step。
+- scientific config hash 与 optimizer parameter-group 结构。
+
+恢复时只有 interrupted run 的最新 checkpoint 可以原地追加；completed run、历史或非最新
+checkpoint 必须创建带父级 metadata 的 child run。已有 checkpoint 禁止覆盖，scalar step
+严格递增，manifest step 唯一。
 
 版本不兼容时给出清晰错误。允许提供显式迁移函数，禁止静默忽略字段。
 

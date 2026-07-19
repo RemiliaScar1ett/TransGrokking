@@ -68,6 +68,7 @@ class TransparentTransformer(nn.Module):
         dropout: float,
         activation: str,
         norm_first: bool,
+        final_norm: bool,
     ) -> None:
         super().__init__()
         if not norm_first:
@@ -81,7 +82,7 @@ class TransparentTransformer(nn.Module):
                 for _ in range(n_layers)
             ]
         )
-        self.final_norm = nn.LayerNorm(d_model)
+        self.final_norm = nn.LayerNorm(d_model) if final_norm else None
         self.unembedding = nn.Linear(d_model, vocab_size)
 
     @staticmethod
@@ -121,9 +122,11 @@ class TransparentTransformer(nn.Module):
             save(f"blocks.{index}.mlp.post", mlp_post)
             residual = residual + block.dropout(block.mlp_out(mlp_post))
             save(f"blocks.{index}.residual.post", residual)
-        normalized = self.final_norm(residual)
-        save("residual.final", normalized)
-        logits = self.unembedding(normalized)
+        save("residual.final", residual)
+        unembedding_input = self.final_norm(residual) if self.final_norm is not None else residual
+        if self.final_norm is not None:
+            save("residual.final_normalized", unembedding_input)
+        logits = self.unembedding(unembedding_input)
         save("logits", logits)
         return logits, cache
 

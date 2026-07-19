@@ -461,11 +461,13 @@ model:
   dropout
   activation
   norm_first
+  final_norm
 
 optimization:
   optimizer
   learning_rate
   weight_decay
+  decay_policy
   max_steps
   precision
   allow_tf32
@@ -488,7 +490,6 @@ loss:
 logging:
   eval_interval
   checkpoint_interval
-  optimizer_checkpoint_interval
   activation_steps
 ```
 

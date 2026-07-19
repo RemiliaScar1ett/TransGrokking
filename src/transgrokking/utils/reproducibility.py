@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import random
 from typing import Any
 
@@ -11,6 +12,8 @@ import torch
 
 def configure_reproducibility(seed: int, deterministic: bool) -> None:
     """Seed all supported RNGs and force the M0 FP32 numerical policy."""
+    if deterministic:
+        os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
     random.seed(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
