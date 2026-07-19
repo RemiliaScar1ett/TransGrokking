@@ -8,7 +8,11 @@ import pytest
 
 from transgrokking.config import config_from_dict, load_config
 from transgrokking.models import TransparentTransformer
-from transgrokking.training.artifacts import load_manifest, scalar_steps
+from transgrokking.training.artifacts import (
+    load_error_offset_records,
+    load_manifest,
+    scalar_steps,
+)
 from transgrokking.training.trainer import train
 
 
@@ -33,6 +37,10 @@ def test_interrupted_latest_checkpoint_resumes_inplace_with_higher_limit(tmp_pat
     assert _digest(checkpoint) == before
     assert scalar_steps(run_dir / "metrics" / "scalars.jsonl") == [1, 2, 3]
     assert [entry["step"] for entry in load_manifest(run_dir)] == [0, 1, 2, 3]
+    offsets = load_error_offset_records(run_dir / "metrics/error_offsets.jsonl")
+    assert [offsets[index]["step"] for index in range(0, len(offsets), 2)] == [1, 2, 3]
+    events = json.loads((run_dir / "metrics/events.json").read_text(encoding="utf-8"))
+    assert events["last_evaluated_step"] == 3
     status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
     assert status["state"] == "completed"
 
@@ -47,7 +55,14 @@ def test_completed_and_nonlatest_resume_create_traceable_child_runs(tmp_path: Pa
     assert Path(metadata["parent_checkpoint"]) == latest
     assert metadata["parent_global_step"] == 3
     assert [entry["step"] for entry in load_manifest(completed_child)] == [3, 4]
-    assert scalar_steps(completed_child / "metrics" / "scalars.jsonl") == [4]
+    assert scalar_steps(completed_child / "metrics" / "scalars.jsonl") == [1, 2, 3, 4]
+    child_offsets = load_error_offset_records(completed_child / "metrics/error_offsets.jsonl")
+    assert [child_offsets[index]["step"] for index in range(0, len(child_offsets), 2)] == [
+        1,
+        2,
+        3,
+        4,
+    ]
 
     historical = parent / "checkpoints" / "step_000001.pt"
     before = _digest(historical)
@@ -57,7 +72,7 @@ def test_completed_and_nonlatest_resume_create_traceable_child_runs(tmp_path: Pa
     history_metadata = json.loads((history_child / "metadata.json").read_text(encoding="utf-8"))
     assert history_metadata["parent_global_step"] == 1
     assert [entry["step"] for entry in load_manifest(history_child)] == [1, 2, 3, 4]
-    assert scalar_steps(history_child / "metrics" / "scalars.jsonl") == [2, 3, 4]
+    assert scalar_steps(history_child / "metrics" / "scalars.jsonl") == [1, 2, 3, 4]
 
 
 def test_scientific_change_is_rejected_and_target_must_increase(tmp_path: Path) -> None:

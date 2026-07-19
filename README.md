@@ -3,8 +3,8 @@
 TransGrokking 是面向模加法 Grokking 复现和机制分析的实验平台。理论定义见
 [`docs/intro.md`](docs/intro.md)。当前已实现范围为 M0：确定性数据、透明
 Transformer、显式 AdamW parameter groups、CE-only full-batch 训练、安全 checkpoint
-恢复和硬件预检。
-M1 及之后的行为时间线、Fourier、群对称性和干预分析仍为 planned。
+恢复、硬件预检和 M1 行为时间线。M2 及之后的 Fourier、群对称性和干预分析仍为
+planned。
 
 ## 环境
 
@@ -57,12 +57,34 @@ split hash 及 Python/NumPy/Torch RNG 状态，并采用临时文件加原子替
 Metadata 同时记录 scientific config hash、父子 run 关系、AdamW group 名称及参数清单、
 最终显存峰值。正式 CE 基线采用 `final_norm: false`，与历史原型架构保持一致。
 
+每次 evaluation 将实际前向结果写入：
+
+```text
+metrics/scalars.jsonl       # loss、accuracy、margin、error count/rate、参数范数
+metrics/error_offsets.jsonl # train/test 错误样本的循环 offset 直方图
+metrics/events.json         # t_fit、t_grok50、t_grok99
+```
+
+错误 offset 定义为 `(prediction-label) mod p`，只统计误分类，因此长度为 `p` 的 counts
+中第 0 项固定为 0。正确类别 margin 定义为正确 logit 减去排除正确类别后的最大错误
+logit。Child run 继承父 checkpoint 之前的 committed M1 时间线，并继续使用绝对 step。
+
+只读重算最新或指定 checkpoint 的 M1 指标：
+
+```bash
+conda run --prefix ./env python -m transgrokking.cli evaluate --run-dir runs/<run_id>
+conda run --prefix ./env python -m transgrokking.cli evaluate --run-dir runs/<run_id> --checkpoint 100
+```
+
+该命令只向终端输出 JSON，不追加训练 timeline 或修改 run 状态。
+
 当前状态：
 
 ```text
-M0 implementation: completed after fixes
+M0 implementation: completed
+M1 behavior timeline: implemented and smoke-tested
 formal CE-only baseline: not yet run
-M1 analysis: planned
+M2 function-space analysis: planned
 ```
 
 历史原型位于 [`legacy/`](legacy/README.md)，仅用于追溯，不是受支持入口。

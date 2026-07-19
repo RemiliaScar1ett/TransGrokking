@@ -28,7 +28,17 @@ def _replace_bytes(path: Path, payload: bytes) -> None:
 
 def write_json(path: str | Path, value: Any) -> None:
     """Atomically write indented UTF-8 JSON."""
-    _replace_bytes(Path(path), (json.dumps(value, indent=2, ensure_ascii=False) + "\n").encode())
+    payload = json.dumps(value, indent=2, ensure_ascii=False, allow_nan=False) + "\n"
+    _replace_bytes(Path(path), payload.encode())
+
+
+def write_json_lines(path: str | Path, records: list[dict[str, Any]]) -> None:
+    """Atomically replace a UTF-8 JSONL file with finite, parseable records."""
+    payload = "".join(
+        json.dumps(record, ensure_ascii=False, allow_nan=False, separators=(",", ":")) + "\n"
+        for record in records
+    )
+    _replace_bytes(Path(path), payload.encode())
 
 
 def write_yaml(path: str | Path, value: Any) -> None:

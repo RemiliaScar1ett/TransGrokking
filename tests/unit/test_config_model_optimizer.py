@@ -28,6 +28,7 @@ def test_config_hash_separates_scientific_and_execution_fields() -> None:
     execution["optimization"]["max_steps"] = 10
     execution["logging"]["eval_interval"] = 2
     execution["hardware"]["analysis_batch_size"] = 2
+    execution["events"]["fit_consecutive"] = 2
     assert config_from_dict(execution).scientific_hash() == config.scientific_hash()
     scientific = config.to_dict()
     scientific["optimization"]["learning_rate"] = 0.002
@@ -43,6 +44,7 @@ def test_config_hash_separates_scientific_and_execution_fields() -> None:
         ("hardware.expected_vram_gb", 0),
         ("logging.eval_interval", 0),
         ("logging.activation_steps", [2, 1, 1]),
+        ("events.grok99_consecutive", 0),
     ],
 )
 def test_config_validation_reports_field_path(path: str, value: object) -> None:

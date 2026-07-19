@@ -171,3 +171,62 @@ M0 implementation: completed after fixes
 formal CE-only baseline: not yet run
 M1 analysis: planned
 ```
+
+## 2026-07-19 — M1 行为时间线协议
+
+**背景**
+
+M0 只记录 loss 与 accuracy，无法检查分类 margin、错误类型、参数范数及行为事件，也缺少
+只读 checkpoint 行为评估入口。
+
+**选择**
+
+- 新增独立 `metrics/` 层，逐 split 计算 CE、accuracy、正确类排除后的样本 margin、错误
+  count/rate 和错误样本循环 offset。
+- 参数范数使用 FP64 accumulator 和非重叠模块桶；`final_norm=false` 使用 JSON `null`，
+  optimizer group 范数复用现有稳定 parameter names。
+- 顶层 `events` 配置定义 `t_fit`、`t_grok50`、`t_grok99` 的阈值和连续 evaluation 数，
+  属于 execution/measurement config，不进入 scientific hash。
+- Metrics schema v1 使用 `scalars.jsonl`、`error_offsets.jsonl`、`events.json`。Offset 先原子
+  写入，scalar 作为 commit marker，events 从 committed scalar 幂等重建；恢复截断未提交
+  offset 尾部。
+- Child run 复制父 checkpoint 之前的 committed M1 timeline，再以绝对 global step 追加。
+  同一 run 已达到事件保持首次检测结果。
+- `evaluate --run-dir ... [--checkpoint ...]` 校验 config、split、manifest 和 checkpoint 后
+  只向终端输出单 checkpoint JSON，不修改 run。
+
+**理由**
+
+行为指标必须来自真实前向，且恢复、分支和离线重算需要共享同一数学实现。Scalar commit
+协议在缺少跨文件事务的普通文件系统上提供明确的安全恢复点。
+
+**影响**
+
+Resolved config 新增 `events` section；旧 M0-only scalar 文件不会被静默当作完整 M1
+timeline。Margin 与错误 offset 是 M1 行为量，不包含 Reynolds、三维 Fourier 或其他 M2
+函数空间分析。
+
+实际验证：
+
+- `conda run --prefix ./env python -m pytest -q`：34 passed；目标 GPU 可用，CUDA RNG 与
+  M1 1-update smoke 实际执行，无 skip。
+- `ruff check`、`ruff format --check`：通过。
+- 普通与严格 doctor：通过，识别 RTX 4060 Laptop GPU、8,585,216,000 bytes VRAM、
+  compute capability 8.9、PyTorch 2.2.0/CUDA runtime 12.1。
+- CPU smoke run `20260719T085709446544Z_274e145d`：3 个 update，三个 metrics 文件完整，
+  scalar step 为 1/2/3，每个 step 有 train/test offset pair，事件文件 last step 为 3。
+- 对该 run 最新 checkpoint 的只读 `evaluate`：通过，未追加 timeline。
+- 独立中断—原地恢复测试：通过，M1 scalar/offset/events 安全继续追加。
+- 首次组合验收脚本因 PowerShell 选中 Conda 输出末尾空行，使 `evaluate --run-dir` 缺少参数
+  而失败；使用明确 smoke run path 重新执行后成功。该失败未修改 run 产物。
+
+**待验证事项**
+
+正式 CE-only 长程基线尚未运行，M2 function-space 指标尚未实现。
+
+```text
+M0 implementation: completed
+M1 behavior timeline: implemented and smoke-tested
+formal CE-only baseline: not yet run
+M2 function-space analysis: planned
+```

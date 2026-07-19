@@ -41,3 +41,9 @@ logging:
   checkpoint_interval: 250
   activation_steps: []
   runs_dir: runs
+events:
+  fit_accuracy: 0.999
+  fit_consecutive: 5
+  grok50_consecutive: 3
+  grok99_accuracy: 0.99
+  grok99_consecutive: 3

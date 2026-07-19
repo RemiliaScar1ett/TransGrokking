@@ -128,6 +128,26 @@ t_{\mathrm{grok99}}-t_{\mathrm{fit}}.
 
 这些行为指标用于定位阶段。内部机制需要由后续结构指标解释。
 
+### 3.1 样本分类 margin 与错误 offset
+
+M1 对每个样本记录分类 margin：
+
+\[
+m(a,b)=z_y(a,b)-\max_{c\ne y}z_c(a,b).
+\]
+
+错误类别最大值必须排除正确类别。正 margin 表示当前样本分类正确，负 margin 表示至少
+一个错误类别 logit 更大。时间线分别记录 train/test 的均值、最小值和固定分位数。
+
+对误分类样本定义循环错误 offset：
+
+\[
+\Delta=(\widehat y-y)\bmod p.
+\]
+
+M1 直方图只统计误分类，因此 offset 0 固定为零。该量描述预测相对正确模加法结果的循环
+偏移，不等同于后续 M2 的 Reynolds offset profile。
+
 ---
 
 ## 4. 压缩视角

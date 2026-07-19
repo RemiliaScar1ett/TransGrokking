@@ -77,6 +77,15 @@ class LoggingConfig:
 
 
 @dataclass(frozen=True)
+class EventsConfig:
+    fit_accuracy: float
+    fit_consecutive: int
+    grok50_consecutive: int
+    grok99_accuracy: float
+    grok99_consecutive: int
+
+
+@dataclass(frozen=True)
 class ExperimentConfig:
     task: TaskConfig
     model: ModelConfig
@@ -84,6 +93,7 @@ class ExperimentConfig:
     hardware: HardwareConfig
     loss: LossConfig
     logging: LoggingConfig
+    events: EventsConfig
 
     def to_dict(self) -> dict[str, Any]:
         """Return a YAML-serializable resolved configuration."""
@@ -147,6 +157,7 @@ def config_from_dict(raw: dict[str, Any]) -> ExperimentConfig:
         hardware=_section(HardwareConfig, raw["hardware"], "hardware"),
         loss=_section(LossConfig, raw["loss"], "loss"),
         logging=_section(LoggingConfig, raw["logging"], "logging"),
+        events=_section(EventsConfig, raw["events"], "events"),
     )
     validate_config(config)
     return config
@@ -207,6 +218,11 @@ def validate_config(config: ExperimentConfig) -> None:
         ("logging.checkpoint_interval", config.logging.checkpoint_interval, int),
         ("logging.activation_steps", config.logging.activation_steps, list),
         ("logging.runs_dir", config.logging.runs_dir, str),
+        ("events.fit_accuracy", config.events.fit_accuracy, (int, float)),
+        ("events.fit_consecutive", config.events.fit_consecutive, int),
+        ("events.grok50_consecutive", config.events.grok50_consecutive, int),
+        ("events.grok99_accuracy", config.events.grok99_accuracy, (int, float)),
+        ("events.grok99_consecutive", config.events.grok99_consecutive, int),
     ]
     for field_path, value, expected in typed_values:
         _require_type(field_path, value, expected)
@@ -290,3 +306,11 @@ def validate_config(config: ExperimentConfig) -> None:
         raise ValueError(f"logging.activation_steps: expected nonnegative integers, got {steps!r}")
     if steps != sorted(set(steps)):
         raise ValueError(f"logging.activation_steps: expected sorted unique values, got {steps!r}")
+    for name in ("fit_accuracy", "grok99_accuracy"):
+        value = getattr(config.events, name)
+        if not 0.0 <= value <= 1.0:
+            raise ValueError(f"events.{name}: expected 0 <= value <= 1, got {value!r}")
+    for name in ("fit_consecutive", "grok50_consecutive", "grok99_consecutive"):
+        value = getattr(config.events, name)
+        if value < 1:
+            raise ValueError(f"events.{name}: expected >= 1, got {value!r}")

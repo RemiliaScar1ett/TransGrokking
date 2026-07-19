@@ -100,6 +100,17 @@ logits, cache = model.run_with_cache(tokens, names_filter=...)
 
 训练循环中的 step 定义必须统一：`global_step` 表示已经完成的 optimizer update 数量。step 0 checkpoint 表示初始化状态。
 
+M1 evaluation 委托给 `metrics/` 纯函数与 evaluator。训练器只负责调度，并按 scalar commit、
+error offset 和原子 events 协议写入，不得长期保存 logits。
+
+## 5.1 M1 行为指标
+
+- 样本 margin 显式排除正确类别；
+- error offset 只统计错误样本，offset 0 固定为零；
+- 参数模块桶互不重叠并使用 FP64 accumulator；
+- event detector 只读取 scalar records，不重新前向；
+- metrics JSON 禁止 NaN/Infinity，恢复与 child run 保持绝对 step 和 committed 前缀。
+
 ## 6. 损失模块
 
 交叉熵是基础目标。congruence loss 作为可配置附加项：

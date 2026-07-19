@@ -57,6 +57,23 @@ def test_real_cli_writes_complete_artifacts_and_branches_completed_run(tmp_path:
     assert (parent / "split.pt").is_file()
     assert scalar_steps(parent / "metrics" / "scalars.jsonl") == [1, 2]
     assert [entry["step"] for entry in load_manifest(parent)] == [0, 1, 2]
+    protected = {
+        name: (parent / name).read_bytes()
+        for name in (
+            "status.json",
+            "metrics/scalars.jsonl",
+            "metrics/error_offsets.jsonl",
+            "metrics/events.json",
+        )
+    }
+    evaluation = _cli("evaluate", "--run-dir", str(parent), "--checkpoint", "1")
+    assert evaluation.returncode == 0, evaluation.stderr
+    summary = json.loads(evaluation.stdout)
+    assert summary["step"] == 1
+    assert "train_margin_q01" in summary
+    assert set(summary["error_offsets"]) == {"train", "test"}
+    for name, contents in protected.items():
+        assert (parent / name).read_bytes() == contents
 
     resumed_path = _write_config(tmp_path, max_steps=3)
     checkpoint = parent / "checkpoints" / "step_000001.pt"
@@ -75,6 +92,7 @@ def test_real_cli_writes_complete_artifacts_and_branches_completed_run(tmp_path:
     metadata = json.loads((child / "metadata.json").read_text(encoding="utf-8"))
     assert metadata["parent_run_id"] == parent.name
     assert metadata["parent_global_step"] == 1
+    assert scalar_steps(child / "metrics/scalars.jsonl") == [1, 2, 3]
 
 
 @pytest.mark.cuda
@@ -95,3 +113,6 @@ def test_target_gpu_one_update_records_peak_memory(tmp_path: Path) -> None:
     assert metadata["max_memory_allocated"] > 0
     assert metadata["max_memory_reserved"] > 0
     assert status["state"] == "completed"
+    assert (run_dir / "metrics/error_offsets.jsonl").is_file()
+    events = json.loads((run_dir / "metrics/events.json").read_text(encoding="utf-8"))
+    assert events["last_evaluated_step"] == 1

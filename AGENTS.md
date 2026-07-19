@@ -491,6 +491,13 @@ logging:
   eval_interval
   checkpoint_interval
   activation_steps
+
+events:
+  fit_accuracy
+  fit_consecutive
+  grok50_consecutive
+  grok99_accuracy
+  grok99_consecutive
 ```
 
 配置解析后执行严格校验。未知字段、非法取值和不一致 shape 需要立即报错。

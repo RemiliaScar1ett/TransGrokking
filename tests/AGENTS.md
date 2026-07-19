@@ -139,6 +139,12 @@ device=cpu
 - run 可被 evaluator 和 analyzer 读取；
 - resume 后 global step 正确增加。
 - 独立 `cuda` marker 单步测试记录目标 GPU peak allocated/reserved VRAM。
+- M1 smoke 同时产生 scalar、error-offset 和 event 文件；真实 `evaluate` CLI 必须只读。
+
+### M1 行为时间线
+
+验证 margin 正确类排除、固定分位数、循环 error offset、非重叠参数范数、事件连续窗口、
+JSON finite/atomic 约束，以及 resume/child run 的 committed timeline 前缀。
 
 ### 干预
 

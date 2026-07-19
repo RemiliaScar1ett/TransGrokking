@@ -16,13 +16,17 @@ from torch.nn import functional as F
 
 from transgrokking.config import ExperimentConfig
 from transgrokking.data import generate_modular_addition, split_artifact
+from transgrokking.metrics.behavior import evaluate_model_behavior
 from transgrokking.models import TransparentTransformer
 from transgrokking.training.artifacts import (
     add_manifest_checkpoint,
-    append_scalar,
+    append_evaluation_artifacts,
+    copy_metric_prefix,
     create_run_dir,
     load_manifest,
+    reconcile_metric_files,
     scalar_steps,
+    update_events,
     write_status,
 )
 from transgrokking.training.checkpoint import load_checkpoint, read_checkpoint, save_checkpoint
@@ -77,22 +81,6 @@ def _update_metadata(run_dir: Path, **updates: Any) -> None:
     write_json(path, metadata)
 
 
-def _evaluate(
-    model: nn.Module,
-    inputs: torch.Tensor,
-    labels: torch.Tensor,
-    indices: torch.Tensor,
-) -> tuple[float, float]:
-    model.eval()
-    with torch.no_grad():
-        logits = model(inputs.index_select(0, indices))[:, -1]
-        targets = labels.index_select(0, indices)
-        return (
-            F.cross_entropy(logits, targets).item(),
-            (logits.argmax(dim=-1) == targets).float().mean().item(),
-        )
-
-
 def _save_regular_checkpoint(
     run_dir: Path,
     model: nn.Module,
@@ -131,6 +119,7 @@ def _resume_plan(
         )
     status = _read_json(status_path)
     latest = bool(entries) and int(entries[-1]["step"]) == parent_step
+    reconcile_metric_files(parent_run)
     scalars = scalar_steps(parent_run / "metrics" / "scalars.jsonl")
     append_safe = not scalars or scalars[-1] <= parent_step
     inplace_allowed = status.get("state") == "interrupted" and latest and append_safe
@@ -231,6 +220,8 @@ def train(
             "use_amp": False,
             "formal_run": config.hardware.formal_run,
             "resume_mode": resolved_mode,
+            "metrics_schema_version": 1,
+            "event_definitions": config.to_dict()["events"],
             **parent_fields,
         }
         if resolved_mode == "inplace":
@@ -247,7 +238,7 @@ def train(
         write_json(run_dir / "metadata.json", base_metadata)
 
         model = build_model(config)
-        optimizer, _ = build_adamw(model, config.optimization)
+        optimizer, grouping = build_adamw(model, config.optimization)
         _update_metadata(run_dir, optimizer_parameter_groups=optimizer_group_metadata(optimizer))
         model = model.to(device=device, dtype=torch.float32)
         inputs = data.inputs.to(device)
@@ -264,9 +255,33 @@ def train(
             )
             if resolved_mode == "branch":
                 _save_regular_checkpoint(run_dir, model, optimizer, config, split_hash, global_step)
+                assert parent_run is not None and parent_step is not None
+                copy_metric_prefix(
+                    parent_run,
+                    run_dir,
+                    parent_step,
+                    config.task.modulus,
+                    config.logging.eval_interval,
+                    config.events,
+                )
             else:
                 load_manifest(run_dir)
-                scalar_steps(run_dir / "metrics" / "scalars.jsonl")
+                reconcile_metric_files(run_dir)
+                update_events(
+                    run_dir,
+                    config.task.modulus,
+                    config.logging.eval_interval,
+                    config.events,
+                    preserve_existing=True,
+                )
+        if checkpoint_path is None:
+            update_events(
+                run_dir,
+                config.task.modulus,
+                config.logging.eval_interval,
+                config.events,
+                preserve_existing=False,
+            )
 
         if device.type == "cuda":
             torch.cuda.reset_peak_memory_stats(device)
@@ -292,18 +307,37 @@ def train(
                 global_step % config.logging.eval_interval == 0
                 or global_step == config.optimization.max_steps
             ):
-                train_loss, train_accuracy = _evaluate(model, inputs, labels, train_indices)
-                test_loss, test_accuracy = _evaluate(model, inputs, labels, test_indices)
-                append_scalar(
-                    run_dir / "metrics" / "scalars.jsonl",
+                behavior, offsets = evaluate_model_behavior(
+                    model,
+                    inputs,
+                    labels,
+                    train_indices,
+                    test_indices,
+                    config.task.modulus,
+                    grouping,
+                )
+                scalar_record = {
+                    "schema_version": 1,
+                    "step": global_step,
+                    **behavior,
+                }
+                offset_records = [
                     {
+                        "schema_version": 1,
                         "step": global_step,
-                        "train_cross_entropy": train_loss,
-                        "test_cross_entropy": test_loss,
-                        "train_accuracy": train_accuracy,
-                        "test_accuracy": test_accuracy,
-                        "congruence_loss": 0.0,
-                    },
+                        "split": split,
+                        "modulus": config.task.modulus,
+                        "counts": offsets[split],
+                    }
+                    for split in ("train", "test")
+                ]
+                append_evaluation_artifacts(
+                    run_dir,
+                    scalar_record,
+                    offset_records,
+                    config.task.modulus,
+                    config.logging.eval_interval,
+                    config.events,
                 )
 
             checkpoint_due = global_step % config.logging.checkpoint_interval == 0
