@@ -1,0 +1,38 @@
+task:
+  modulus: 7
+  train_fraction: 0.5
+  split_seed: 42
+model:
+  d_model: 16
+  n_heads: 2
+  n_layers: 1
+  d_mlp: 32
+  dropout: 0.0
+  activation: relu
+  norm_first: true
+optimization:
+  optimizer: adamw
+  learning_rate: 0.001
+  weight_decay: 0.1
+  max_steps: 3
+  precision: fp32
+  allow_tf32: false
+  use_amp: false
+  deterministic: true
+  seed: 1
+  device: cpu
+hardware:
+  expected_device: NVIDIA GeForce RTX 4060 Laptop GPU
+  expected_vram_gb: 8
+  formal_run: false
+  analysis_batch_size: 64
+  activation_offload: true
+loss:
+  cross_entropy_weight: 1.0
+  congruence_weight: 0.0
+logging:
+  eval_interval: 1
+  checkpoint_interval: 1
+  optimizer_checkpoint_interval: 1
+  activation_steps: []
+  runs_dir: runs

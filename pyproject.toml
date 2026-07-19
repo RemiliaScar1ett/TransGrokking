@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "transgrokking"
+version = "0.1.0"
+description = "Reproducible grokking experiments on modular addition"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+  "numpy>=1.26,<2",
+  "PyYAML>=6,<7",
+  "torch>=2.2,<2.3",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=9,<10", "ruff>=0.9,<1"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["cuda: requires CUDA hardware"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+extend-exclude = ["legacy"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
