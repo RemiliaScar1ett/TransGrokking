@@ -2,270 +2,136 @@
 
 ## 1. 作用域
 
-本文件适用于 `src/` 目录及其全部子目录。根目录 `AGENTS.md` 的规则继续有效。
+本文件适用于 `src/` 及其全部子目录。根目录阶段顺序和固定协议继续有效。
 
-## 2. 包结构与依赖方向
-
-推荐包结构：
+## 2. 依赖方向
 
 ```text
-src/transgrokking/
-├── cli.py
-├── config.py
-├── data.py
-├── models/
-├── training/
-├── metrics/
-├── interventions/
-└── utils/
-```
-
-依赖方向保持单向：
-
-```text
-config/data/models
-        ↓
-training
-        ↓
-metrics/interventions
-        ↓
+config / data / models
+          ↓
+training / checkpoint
+          ↓
+metrics / interventions
+          ↓
 cli
 ```
 
-`models/` 不得导入训练器或分析脚本。`metrics/` 可以依赖张量与模型输出，不得启动训练。`analysis/` 不属于可安装核心包。
+`models/` 不得导入训练器。`metrics/` 只接受张量、模型状态或 run artifacts，不得隐式启动训练。`interventions/` 通过明确 branch 接口创建 child run。
 
-## 3. 数据模块
+## 3. 训练与设备
 
-数据模块需要提供：
+- `global_step` 表示已经完成的 optimizer update 数量。
+- step 0 checkpoint 表示初始化状态。
+- 确定性环境变量在首次 CUDA 调用前设置。
+- 模型迁移到目标设备后创建 AdamW。
+- GPU 测试验证模型参数真实更新。
+- 正式基线保持 CE-only、FP32、TF32/AMP 关闭。
+- 训练器不得包含绘图、Reynolds、FFT 或大型 activation 分析。
 
-- 完整模加法表的确定性生成；
-- 固定 seed 的划分；
-- train/test 索引；
-- split hash；
-- 完整输入网格；
-- 配置一致性校验。
+## 4. M1 实现职责
 
-基础标签满足：
+M1 行为指标放在 `metrics/behavior.py`、`metrics/norms.py` 和 `metrics/events.py`。
 
-\[
-y=(a+b)\bmod p.
-\]
+要求：
 
-必须验证：
+- margin 排除正确类别；
+- error offset 只统计错误样本；
+- 参数模块桶互不重叠；
+- FP64 accumulator 用于参数平方和；
+- event detector 只读取已提交 scalar；
+- offline evaluator 只读 checkpoint 与 split；
+- scalar、offset、event 文件支持恢复与 child-run 前缀复制。
 
-- 样本总数为 \(p^2\)；
-- 每个有序输入对只出现一次；
-- train/test 互斥；
-- train/test 并集覆盖完整表；
-- 相同 seed 产生相同划分。
+M1 正式配置固定 `eval_interval=50`、`checkpoint_interval=100`。训练控制器支持 5000、20000、50000 step 的安全延长，并验证 `t_grok99` 后 20 个 evaluation interval。
 
-数据量很小，基础训练采用 full-batch tensor。接口仍需允许分析前向分批执行。
+## 5. M2 实现职责
 
-## 4. 模型模块
-
-实现透明的小型 Transformer，要求：
-
-- 显式 token embedding、position embedding、attention、MLP、LayerNorm 和 unembedding；
-- dropout 由配置控制，基线默认 0；
-- causal mask 行为有测试；
-- 支持返回最终 logits；
-- 支持按名称注册 hook；
-- 支持捕获 per-head output 和 MLP activation；
-- final LayerNorm 由 `model.final_norm` 显式控制，基线为 `false`；
-- 所有张量 shape 在 docstring 中说明；
-- 初始化完全受 seed 控制。
-
-推荐 forward 接口：
-
-```python
-logits = model(tokens)
-logits, cache = model.run_with_cache(tokens, names_filter=...)
-```
-
-`cache` 使用稳定的层级名称。名称一旦进入分析文件，修改时需要提供迁移说明。
-
-## 5. 训练模块
-
-训练器负责：
-
-- 构建模型、损失和优化器；
-- full-batch step；
-- 定期评估；
-- checkpoint 保存与恢复；
-- 运行状态更新；
-- scalar logging；
-- 失败时写入状态。
-
-训练器不得内置绘图和大型 Fourier 分析。重型指标通过 evaluator 在指定 step 运行。
-
-训练循环中的 step 定义必须统一：`global_step` 表示已经完成的 optimizer update 数量。step 0 checkpoint 表示初始化状态。
-
-M1 evaluation 委托给 `metrics/` 纯函数与 evaluator。训练器只负责调度，并按 scalar commit、
-error offset 和原子 events 协议写入，不得长期保存 logits。
-
-## 5.1 M1 行为指标
-
-- 样本 margin 显式排除正确类别；
-- error offset 只统计错误样本，offset 0 固定为零；
-- 参数模块桶互不重叠并使用 FP64 accumulator；
-- event detector 只读取 scalar records，不重新前向；
-- metrics JSON 禁止 NaN/Infinity，恢复与 child run 保持绝对 step 和 committed 前缀。
-
-## 6. 损失模块
-
-交叉熵是基础目标。congruence loss 作为可配置附加项：
-
-\[
-L=L_{\mathrm{CE}}+\lambda_{\mathrm{cong}}L_{\mathrm{cong}}.
-\]
-
-返回结构至少包含：
-
-```text
-total
-cross_entropy
-congruence
-```
-
-关闭某个损失时仍记录明确的零值或禁用状态。禁止通过删除日志字段表达禁用。
-
-## 7. 完整 logit 张量
-
-统一 shape：
+完整 logits 统一 shape：
 
 ```text
 [p, p, p]
-```
-
-轴顺序固定为：
-
-```text
 [a, b, candidate_c]
 ```
 
-输入批次可以展平为 `[p*p, 2]`，输出 reshape 回 `[p, p, p]`。
-
-中心化定义：
+中心化：
 
 \[
-\widetilde z(a,b,c)
-=
-z(a,b,c)-\frac1p\sum_jz(a,b,j).
+\widetilde z(a,b,c)=z(a,b,c)-\frac1p\sum_jz(a,b,j).
 \]
 
-中心化函数需要支持任意浮点 dtype，并避免原地修改输入。
-
-## 8. Reynolds 投影
-
-推荐直接计算 offset profile：
+Reynolds offset profile：
 
 \[
-g(d)
-=
-\frac1{p^2}
-\sum_{a,b}
-\widetilde z(a,b,a+b+d).
+g(d)=\frac1{p^2}\sum_{a,b}\widetilde z(a,b,a+b+d).
 \]
 
-再构造：
-
-\[
-z^\parallel(a,b,c)=g(c-a-b),
-\qquad
-z^\perp=\widetilde z-z^\parallel.
-\]
-
-函数返回：
+返回：
 
 ```text
 centered_logits
 offset_profile
 equivariant_logits
 residual_logits
+D_eq
+Gamma
+I
 ```
 
-必须满足：
+M2 函数保持纯函数性质。完整 logits evaluator 支持 batch size、device、dtype 和 CPU offload。关键 checkpoint 可以持久化张量，其余 checkpoint 允许离线重建。
 
-- \(\Pi^2z=\Pi z\)；
-- \(z^\parallel\) 对群作用保持不变；
-- \(\langle z^\parallel,z^\perp\rangle\approx0\)；
-- 重构误差接近浮点精度；
-- 常数类别偏置在中心化后消失。
+## 6. M3 实现职责
 
-## 9. Margin 与干扰
+统一 FFT：
 
-统一正确标签：
+```python
+torch.fft.fftn(x, dim=(0, 1, 2), norm="ortho")
+```
 
-\[
-y=(a+b)\bmod p.
-\]
-
-算法 margin：
-
-\[
-\Gamma=g(0)-\max_{d\ne0}g(d).
-\]
-
-残差干扰：
-
-\[
-I=
-\max_{a,b,c\ne y}
-[z^\perp(a,b,c)-z^\perp(a,b,y)].
-\]
-
-实现时禁止把正确类别放入错误类别最大值。测试应构造 \(\Gamma>I\) 和 \(\Gamma\le I\) 的人工案例。
-
-## 10. Fourier 约定
-
-使用 `torch.fft.fftn` 和 `torch.fft.ifftn`。整个项目统一 `norm="ortho"`，除非文档明确选择其他约定。
-
-目标频率线索引：
+目标线索引：
 
 \[
 (r,r,-r\bmod p).
 \]
 
-需要处理 Python 负索引与模索引的差异。函数返回 complex tensor；能量定义为
+实现 target-line mask、频率能量、inverse transform、restricted/excluded logits。Complex tensor 保留到指标层，绘图层再转换为能量和相位。
 
-\[
-|\widehat z|^2
-=
-\operatorname{Re}(\widehat z)^2+
-\operatorname{Im}(\widehat z)^2.
-\]
+## 7. M4 实现职责
 
-Reynolds mask 与显式投影需要在容差内一致。禁止只比较归一化比例，原始张量也要检查。
+M4 主要增加运行矩阵配置与批量调度。每个运行独立创建 run ID。禁止复用模型状态模拟独立 seed 或 WD 条件。
 
-## 11. 表征指标
-
-embedding Fourier 分析沿 token 轴执行。circle fit 使用正弦和余弦基，并返回：
+矩阵固定包含：
 
 ```text
-frequency
-explained_variance
-cos_direction
-sin_direction
-residual_norm
+seed 2,3 with WD=0.5
+WD=0,0.1,1.0 with seed 1,2,3
 ```
 
-effective rank 默认使用 participation ratio：
+批量调度器只负责串行或受控并发启动，不能改变单次 run 的科学配置。
 
-\[
-r_{\mathrm{eff}}
-=
-\frac{(\sum_i\lambda_i)^2}{\sum_i\lambda_i^2}.
-\]
+## 8. M5 实现职责
 
-当协方差总能量接近零时，返回受控值并记录警告。
+### 表征
 
-linear probe 需要固定训练 split、正则化和随机种子。probe 结果属于诊断指标，禁止回传梯度到主模型。
+稳定 hook 名称覆盖：
 
-## 12. 优化动力学
+```text
+embed.token
+embed.position
+blocks.<i>.attention.head_output
+blocks.<i>.residual.mid
+blocks.<i>.mlp.pre
+blocks.<i>.mlp.post
+blocks.<i>.residual.post
+residual.final
+residual.final_normalized
+logits
+```
 
-AdamW 数据更新与 decay 更新需要按实际 parameter group 记录。每个 parameter group 的 learning rate 和 weight decay 都可能不同。
+实现 embedding Fourier、circle fit、hidden-state DFT、effective rank 和 linear probe。
 
-记录模块级：
+### 优化动力学
+
+按实际 AdamW parameter group 记录：
 
 ```text
 parameter_norm
@@ -277,52 +143,50 @@ tangential_update_norm
 data_decay_cosine
 ```
 
-零范数和零梯度情况需要安全处理。任何近似分解都要在返回 metadata 中标记。
+更新分解必须与真实 optimizer step 对齐。近似实现需要写入 metadata。
 
-LayerNorm 与 bias 是否施加 decay 必须由配置明确决定。默认配置应提供单独 parameter groups。
-parameter group 必须拥有稳定名称及完整参数名清单，并写入 metadata 与 checkpoint
-兼容性签名。所有可训练参数必须恰好归入一个 group。
+### 干预
 
-## 13. Checkpoint
+Branch runner 支持 WD 分支、optimizer reset、模块冻结、frequency ablation、activation patching 和模块移植。M5 只处理 CE-only 条件。
 
-checkpoint 写入包含版本号。加载时验证：
+## 9. M6 实现职责
+
+Congruence loss：
+
+\[
+L_{\mathrm{cong}}=
+\sum_k P_\theta(k\mid a,b)
+\left[1-\cos\frac{2\pi(k-y)}p\right].
+\]
+
+返回：
+
+```text
+total
+cross_entropy
+congruence
+```
+
+实现 loss schedule、共享初始化、成对运行和模块级梯度范数/夹角。Schedule 事件来源于冻结的 M1 事件定义。
+
+## 10. Checkpoint 与 schema
+
+Checkpoint 加载验证：
 
 - schema version；
-- model config；
-- modulus；
+- scientific config hash；
 - split hash；
-- 参数 shape；
-- optimizer 类型；
-- global step。
-- scientific config hash 与 optimizer parameter-group 结构。
+- model state shape；
+- optimizer type 与 parameter-group signature；
+- global step 与 RNG state。
 
-恢复时只有 interrupted run 的最新 checkpoint 可以原地追加；completed run、历史或非最新
-checkpoint 必须创建带父级 metadata 的 child run。已有 checkpoint 禁止覆盖，scalar step
-严格递增，manifest step 唯一。
+旧 schema 禁止静默加载。迁移函数必须显式调用并有回归测试。
 
-版本不兼容时给出清晰错误。允许提供显式迁移函数，禁止静默忽略字段。
+## 11. 资源约束
 
-## 14. RTX 4060 Laptop 8GB 资源约束
+完整 logits 逐 checkpoint 生成。Activation 只在指定 checkpoint 和模块提取。分析完成后立即转移到 CPU 并释放 GPU 引用。禁止保存全时间线的完整 activation。
 
-基础 \(p=97\) 规模下优先选择可读的向量化实现。正式训练目标设备为 `cuda:0` 上的 NVIDIA GeForce RTX 4060 Laptop GPU 8GB。
-
-完整 FP32 logit 张量约占 3.5 MiB，可以在单个 checkpoint 上完整构造。中间 activation 的规模随模块、样本和 checkpoint 数量增长，需要遵守以下规则：
-
-- 训练期间只记录 scalar 和少量聚合张量。
-- activation hook 默认关闭，只在配置指定的 checkpoint 与模块开启。
-- 分析按单个 checkpoint 顺序执行，完成后把派生张量转移到 CPU 并释放引用。
-- full-table forward 提供可配置批量，默认值需通过 8GB 平台 smoke profile 确定。
-- Fourier 与 Reynolds 派生计算默认允许在 CPU 完成，避免长期占用显存。
-- 禁止缓存全部 checkpoint 的 hidden state、attention pattern 或 MLP activation。
-- 不在训练内循环中反复调用 `torch.cuda.empty_cache()`。该函数只可用于明确的分析阶段边界或 OOM 恢复前清理。
-- 记录峰值 allocated/reserved VRAM，并把分析批量写入产物 metadata。
-- CUDA OOM 时优先减小分析批量或启用 CPU offload。训练超参数保持原配置，失败运行保留。
-
-函数参数支持 `device`、`dtype`、analysis batch size 和 CPU offload。CPU 单元测试不得依赖 CUDA。正式 GPU 运行需要先通过根目录规定的 `doctor` 严格检查。
-
-## 15. 局部完成条件
-
-修改 `src/` 后至少运行：
+## 12. 局部完成条件
 
 ```bash
 conda run --prefix ./env python -m pytest -q tests/unit
@@ -330,4 +194,4 @@ conda run --prefix ./env python -m ruff check src tests
 conda run --prefix ./env python -m ruff format --check src tests
 ```
 
-涉及 CLI、训练或 checkpoint 时，继续运行 smoke training 和恢复测试。
+影响训练、CLI、checkpoint 或 branch runner 时继续运行对应 integration smoke。
