@@ -1,10 +1,9 @@
 # TransGrokking
 
 TransGrokking 是面向模加法 Grokking 复现和机制分析的实验平台。理论定义见
-[`docs/intro.md`](docs/intro.md)。当前已实现范围为 M0：确定性数据、透明
-Transformer、显式 AdamW parameter groups、CE-only full-batch 训练、安全 checkpoint
-恢复、硬件预检和 M1 行为时间线。M2 及之后的 Fourier、群对称性和干预分析仍为
-planned。
+[`docs/intro.md`](docs/intro.md)，仓库可执行协议见
+[`docs/experiment_protocol.md`](docs/experiment_protocol.md)。M0 工程基础、M1 行为测量和
+正式 CE-reference seed 1 已完成；M2 函数空间与群对称性分析尚待实施。
 
 ## 环境
 
@@ -22,7 +21,7 @@ conda run --prefix ./env python -m transgrokking.cli doctor
 conda run --prefix ./env python -m transgrokking.cli doctor --require-cuda --expected-device "NVIDIA GeForce RTX 4060 Laptop GPU" --expected-vram-gb 8
 ```
 
-## M0 命令
+## 常用命令
 
 生成确定性划分：
 
@@ -46,8 +45,7 @@ conda run --prefix ./env python -m transgrokking.cli train --config configs/smok
 或非最新 checkpoint 自动创建 child run。可显式选择 `inplace` 或 `branch`，不满足原地
 恢复条件时命令会失败。恢复允许提高 `max_steps`，但目标必须严格大于 checkpoint step。
 
-`configs/baseline_ce.yaml` 是尚未执行的正式 CE-only 配置。本轮不得把 CPU smoke
-结果解释为 Grokking 实验结果。
+`configs/baseline_ce.yaml` 是已冻结并完成 seed 1 正式运行的 CE-only 基准配置。
 
 ## 运行产物
 
@@ -72,9 +70,11 @@ logit。Child run 继承父 checkpoint 之前的 committed M1 时间线，并继
 只读重算最新或指定 checkpoint 的 M1 指标：
 
 ```bash
-conda run --prefix ./env python -m transgrokking.cli evaluate --run-dir runs/<run_id>
-conda run --prefix ./env python -m transgrokking.cli evaluate --run-dir runs/<run_id> --checkpoint 100
-conda run --prefix ./env python -m transgrokking.cli audit --run-dir runs/<canonical_run_id>
+conda run --prefix ./env python -m transgrokking.cli evaluate \
+  --run-dir runs/<run_id>
+
+conda run --prefix ./env python -m transgrokking.cli audit \
+  --run-dir runs/<canonical_run_id>
 ```
 
 该命令只向终端输出 JSON，不追加训练 timeline 或修改 run 状态。
@@ -84,8 +84,13 @@ conda run --prefix ./env python -m transgrokking.cli audit --run-dir runs/<canon
 ```text
 M0 engineering foundation: completed
 M1-A behavior measurement: completed
-M1-B CE-reference seed 1: completed (canonical run `20260721T045433955396Z_30c62ebc`)
+M1-B CE-reference seed 1: completed
 M2 function-space analysis: planned
 ```
+
+M1 canonical run 为 `20260721T045433955396Z_30c62ebc`，最终 step 为 20000；行为事件为
+`t_fit=100`、`t_grok50=6050`、`t_grok99=7000`，M1 audit 已通过。这些时间点仅描述行为
+时间线；Reynolds 投影等函数空间解释安排在 M2，目前尚未产生机制结论。完整执行记录见
+[`docs/implementation.md`](docs/implementation.md)。
 
 历史原型位于 [`legacy/`](legacy/README.md)，仅用于追溯，不是受支持入口。

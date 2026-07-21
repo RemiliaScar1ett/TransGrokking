@@ -1,11 +1,16 @@
-# M0 实验协议
+# TransGrokking 实验协议
+
+固定理论与总实验规范由仓库根目录的
+[`TransGrokking_Theory_Experiment_Specification.pdf`](../TransGrokking_Theory_Experiment_Specification.pdf)
+控制。本文件维护仓库当前可执行协议并登记阶段状态；历史工程决定、命令、失败与正式运行
+详情见[实现与运行记录](implementation.md)。本文件不复制完整实验日志。
 
 ## 基线
 
 - 任务：`p=97` 模加法，固定 seed 的 40%/60% 划分。
 - 模型与优化参数以 `configs/baseline_ce.yaml` 为唯一入口。
 - 基线使用 `final_norm: false`：最后 residual stream 直接进入 unembedding，与历史原型一致。
-- 目标函数仅为 cross-entropy；congruence loss 在 M0 禁用。
+- CE-reference 目标函数仅为 cross-entropy；congruence loss 禁用。
 - 正式设备为 `cuda:0` 上的 NVIDIA GeForce RTX 4060 Laptop GPU 8GB。
 - 数值策略为 FP32，并关闭 TF32、AMP、BF16、FP16 和 `torch.compile`。
 
@@ -68,19 +73,18 @@ NaN/Infinity；JSONL 采用原子替换。Offset 先写，scalar 作为 evaluati
 events 随后原子重建；恢复会截断没有 scalar commit 的尾部 offset。Child run 复制父
 checkpoint 之前的 committed M1 前缀后继续绝对 step。
 
-## 当前执行边界
-
-M0 只允许 CPU 单元测试、恢复等价测试和极短 smoke。`baseline_ce.yaml` 的长程轨迹
-尚未执行。测试集指标仅用于管线观测，不用于本轮得出 Grokking 结论。
-
-M1+ 的事件检测、完整 logits、Reynolds/Fourier 指标、activation 分析和干预不属于
-本阶段实现范围。
+## 当前阶段状态
 
 ```text
 M0 engineering foundation: completed
 M1-A behavior measurement: completed
 M1-B CE-reference seed 1: completed
 M2 function-space analysis: planned
+```
+
+Canonical CE-reference run：`20260721T045433955396Z_30c62ebc`。M1 的正式执行、失败重试、
+行为事件和审计结果见[实现与运行记录](implementation.md)。行为事件用于定位时间线，函数空间
+与机制解释属于 M2，当前仍为 planned。
 
 正式 CE-reference 固定 `eval_interval=50` 与 `checkpoint_interval=100`。训练入口必须先设置
 确定性环境和随机状态，再调用任何 CUDA 诊断；模型迁移到 `cuda:0`/FP32 后才能建立 AdamW
@@ -89,4 +93,3 @@ CPU；该标量不参与参数张量设备绑定判断，也不通过 `capturabl
 
 最终 run 使用 `transgrokking.cli audit` 生成 `audit/m1_ce_reference.json`。只有生命周期、
 lineage、hash、时间轴、manifest、离线 evaluator 和预注册停止规则全部通过时，M1-B 才标记完成。
-```
