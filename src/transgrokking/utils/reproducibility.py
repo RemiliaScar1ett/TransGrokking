@@ -40,6 +40,6 @@ def restore_rng_state(state: dict[str, Any]) -> None:
     """Restore RNG state captured by :func:`capture_rng_state`."""
     random.setstate(state["python_rng_state"])
     np.random.set_state(state["numpy_rng_state"])
-    torch.set_rng_state(state["torch_cpu_rng_state"])
+    torch.set_rng_state(state["torch_cpu_rng_state"].cpu())
     if state["torch_cuda_rng_state"] is not None and torch.cuda.is_available():
-        torch.cuda.set_rng_state_all(state["torch_cuda_rng_state"])
+        torch.cuda.set_rng_state_all([item.cpu() for item in state["torch_cuda_rng_state"]])

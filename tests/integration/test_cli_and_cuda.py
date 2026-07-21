@@ -184,3 +184,19 @@ def test_fresh_cuda_cli_sets_determinism_before_first_cuda_call(tmp_path: Path) 
         not torch.equal(initial["model_state"][name], updated["model_state"][name])
         for name in initial["model_state"]
     )
+    raw["optimization"]["max_steps"] = 2
+    resume_path = tmp_path / "fresh-cuda-resume.yaml"
+    resume_path.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
+    resumed = _cli(
+        "train",
+        "--config",
+        str(resume_path),
+        "--resume-from",
+        str(run_dir / "checkpoints" / "step_000001.pt"),
+        "--resume-mode",
+        "auto",
+        env=environment,
+    )
+    assert resumed.returncode == 0, resumed.stderr
+    resumed_run = Path(resumed.stdout.strip().splitlines()[-1])
+    assert json.loads((resumed_run / "status.json").read_text(encoding="utf-8"))["global_step"] == 2
