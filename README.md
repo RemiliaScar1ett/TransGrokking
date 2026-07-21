@@ -84,7 +84,7 @@ conda run --prefix ./env python -m transgrokking.cli audit --run-dir runs/<canon
 ```text
 M0 engineering foundation: completed
 M1-A behavior measurement: completed
-M1-B CE-reference seed 1: pending formal run
+M1-B CE-reference seed 1: completed (canonical run `20260721T045433955396Z_30c62ebc`)
 M2 function-space analysis: planned
 ```
 
