@@ -30,7 +30,11 @@ from transgrokking.training.artifacts import (
     write_status,
 )
 from transgrokking.training.checkpoint import load_checkpoint, read_checkpoint, save_checkpoint
-from transgrokking.training.optimizer import build_adamw, optimizer_group_metadata
+from transgrokking.training.optimizer import (
+    build_adamw,
+    optimizer_group_metadata,
+    validate_optimizer_parameter_identity,
+)
 from transgrokking.utils.atomic import torch_save, write_json, write_yaml
 from transgrokking.utils.doctor import collect_doctor_report, validate_doctor_report
 from transgrokking.utils.reproducibility import configure_reproducibility
@@ -169,6 +173,7 @@ def train(
     device = torch.device(config.optimization.device)
     split_hash: str | None = None
     try:
+        configure_reproducibility(config.optimization.seed, config.optimization.deterministic)
         report = collect_doctor_report()
         if config.hardware.formal_run:
             errors = validate_doctor_report(
@@ -182,7 +187,6 @@ def train(
         if device.type == "cuda" and not torch.cuda.is_available():
             raise RuntimeError(f"configured device {device} is unavailable")
 
-        configure_reproducibility(config.optimization.seed, config.optimization.deterministic)
         data = generate_modular_addition(
             config.task.modulus, config.task.train_fraction, config.task.split_seed
         )
@@ -237,10 +241,10 @@ def train(
             base_metadata["resume_history"] = history
         write_json(run_dir / "metadata.json", base_metadata)
 
-        model = build_model(config)
+        model = build_model(config).to(device=device, dtype=torch.float32)
         optimizer, grouping = build_adamw(model, config.optimization)
+        validate_optimizer_parameter_identity(model, optimizer)
         _update_metadata(run_dir, optimizer_parameter_groups=optimizer_group_metadata(optimizer))
-        model = model.to(device=device, dtype=torch.float32)
         inputs = data.inputs.to(device)
         labels = data.labels.to(device)
         train_indices = data.train_indices.to(device)

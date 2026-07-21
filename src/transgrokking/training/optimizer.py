@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from torch import nn
-from torch.optim import AdamW
+from torch.optim import AdamW, Optimizer
 
 from transgrokking.config import OptimizationConfig
 
@@ -84,6 +84,24 @@ def build_adamw(
         },
     ]
     return AdamW(groups), grouping
+
+
+def validate_optimizer_parameter_identity(model: nn.Module, optimizer: Optimizer) -> None:
+    """Require optimizer groups to reference every trainable model parameter exactly once."""
+    model_parameters = [parameter for parameter in model.parameters() if parameter.requires_grad]
+    optimizer_parameters = [
+        parameter for group in optimizer.param_groups for parameter in group["params"]
+    ]
+    model_ids = {id(parameter) for parameter in model_parameters}
+    optimizer_ids = {id(parameter) for parameter in optimizer_parameters}
+    if len(optimizer_parameters) != len(optimizer_ids):
+        raise ValueError("optimizer contains duplicate parameter objects")
+    if model_ids != optimizer_ids:
+        missing = len(model_ids - optimizer_ids)
+        extra = len(optimizer_ids - model_ids)
+        raise ValueError(
+            f"optimizer/model parameter identity mismatch: missing={missing}, extra={extra}"
+        )
 
 
 def optimizer_group_metadata(optimizer: AdamW) -> list[dict[str, object]]:

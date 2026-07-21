@@ -9,6 +9,7 @@ from pathlib import Path
 
 from transgrokking.config import load_config
 from transgrokking.data import generate_modular_addition, split_artifact
+from transgrokking.metrics.audit import audit_m1_ce_reference
 from transgrokking.metrics.evaluator import evaluate_run_checkpoint
 from transgrokking.training.trainer import train
 from transgrokking.utils.atomic import torch_save
@@ -55,6 +56,12 @@ def _evaluate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _audit(args: argparse.Namespace) -> int:
+    result = audit_m1_ce_reference(args.run_dir)
+    print(json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False))
+    return 0 if result["passed"] else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     """Build the M0/M1 command parser."""
     parser = argparse.ArgumentParser(prog="transgrokking")
@@ -76,6 +83,9 @@ def build_parser() -> argparse.ArgumentParser:
     evaluation.add_argument("--run-dir", required=True)
     evaluation.add_argument("--checkpoint")
     evaluation.set_defaults(handler=_evaluate)
+    audit = subparsers.add_parser("audit")
+    audit.add_argument("--run-dir", required=True)
+    audit.set_defaults(handler=_audit)
     return parser
 
 

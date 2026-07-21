@@ -8,7 +8,11 @@ import torch
 from transgrokking.config import config_from_dict, load_config
 from transgrokking.data import generate_modular_addition
 from transgrokking.models import TransparentTransformer
-from transgrokking.training.optimizer import build_adamw, classify_parameters
+from transgrokking.training.optimizer import (
+    build_adamw,
+    classify_parameters,
+    validate_optimizer_parameter_identity,
+)
 from transgrokking.training.trainer import build_model
 
 
@@ -100,6 +104,37 @@ def test_parameter_groups_follow_policy_without_gaps_or_duplicates() -> None:
     optimizer, _ = build_adamw(model, config.optimization)
     assert [group["group_name"] for group in optimizer.param_groups] == ["decay", "no_decay"]
     assert [group["weight_decay"] for group in optimizer.param_groups] == [0.1, 0.0]
+    validate_optimizer_parameter_identity(model, optimizer)
+
+
+def test_optimizer_parameter_identity_rejects_duplicates() -> None:
+    config = load_config("configs/smoke.yaml")
+    model = build_model(config)
+    optimizer, _ = build_adamw(model, config.optimization)
+    optimizer.param_groups[0]["params"].append(optimizer.param_groups[0]["params"][0])
+    with pytest.raises(ValueError, match="duplicate"):
+        validate_optimizer_parameter_identity(model, optimizer)
+
+
+def test_formal_baseline_configuration_is_frozen() -> None:
+    config = load_config("configs/baseline_ce.yaml")
+    assert config.task == type(config.task)(97, 0.4, 42)
+    assert (config.model.d_model, config.model.n_heads, config.model.n_layers) == (128, 4, 2)
+    assert (config.model.d_mlp, config.model.activation, config.model.final_norm) == (
+        512,
+        "relu",
+        False,
+    )
+    assert config.optimization.learning_rate == 0.001
+    assert config.optimization.weight_decay == 0.5
+    assert config.optimization.max_steps == 5000
+    assert config.optimization.seed == 1
+    assert config.optimization.device == "cuda:0"
+    assert config.hardware.formal_run is True
+    assert config.logging.eval_interval == 50
+    assert config.logging.checkpoint_interval == 100
+    assert config.loss.cross_entropy_weight == 1.0
+    assert config.loss.congruence_weight == 0.0
 
 
 def test_policy_can_toggle_embeddings_biases_and_layer_norm() -> None:

@@ -38,7 +38,7 @@ loss:
   congruence_weight: 0.0
 logging:
   eval_interval: 50
-  checkpoint_interval: 250
+  checkpoint_interval: 100
   activation_steps: []
   runs_dir: runs
 events:

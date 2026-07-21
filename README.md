@@ -74,6 +74,7 @@ logit。Child run 继承父 checkpoint 之前的 committed M1 时间线，并继
 ```bash
 conda run --prefix ./env python -m transgrokking.cli evaluate --run-dir runs/<run_id>
 conda run --prefix ./env python -m transgrokking.cli evaluate --run-dir runs/<run_id> --checkpoint 100
+conda run --prefix ./env python -m transgrokking.cli audit --run-dir runs/<canonical_run_id>
 ```
 
 该命令只向终端输出 JSON，不追加训练 timeline 或修改 run 状态。
@@ -81,9 +82,9 @@ conda run --prefix ./env python -m transgrokking.cli evaluate --run-dir runs/<ru
 当前状态：
 
 ```text
-M0 implementation: completed
-M1 behavior timeline: implemented and smoke-tested
-formal CE-only baseline: not yet run
+M0 engineering foundation: completed
+M1-A behavior measurement: completed
+M1-B CE-reference seed 1: pending formal run
 M2 function-space analysis: planned
 ```
 

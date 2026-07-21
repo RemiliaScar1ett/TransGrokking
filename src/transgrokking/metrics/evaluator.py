@@ -12,7 +12,7 @@ from transgrokking.data import generate_modular_addition
 from transgrokking.metrics.behavior import evaluate_model_behavior
 from transgrokking.training.artifacts import load_manifest
 from transgrokking.training.checkpoint import load_checkpoint, read_checkpoint
-from transgrokking.training.optimizer import build_adamw
+from transgrokking.training.optimizer import build_adamw, validate_optimizer_parameter_identity
 from transgrokking.training.trainer import build_model
 from transgrokking.utils.reproducibility import configure_reproducibility
 
@@ -66,6 +66,7 @@ def evaluate_run_checkpoint(run_dir: str | Path, checkpoint: str | None = None) 
         raise RuntimeError(f"configured device {device} is unavailable")
     model = build_model(config).to(device=device, dtype=torch.float32)
     optimizer, grouping = build_adamw(model, config.optimization)
+    validate_optimizer_parameter_identity(model, optimizer)
     step = load_checkpoint(selected, model, optimizer, config, data.split_hash, device)
     behavior, offsets = evaluate_model_behavior(
         model,
