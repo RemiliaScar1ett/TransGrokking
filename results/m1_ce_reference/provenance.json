@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "canonical_run_id": "20260721T045433955396Z_30c62ebc",
+  "source_git_commit": "0f96f3a21409894b1f03cee7c792ecb9d79ea0d6",
+  "scientific_config_hash": "b167674594bf0944f0b2afb877d2d8c8f5647c0e4e60c64ebb2a511a9f1f7729",
+  "split_hash": "d0ec6ff924ecc411b9a9d40786f057ec869076b98308e2ecb75da2756c308237",
+  "final_step": 20000,
+  "evaluation_interval": 50,
+  "checkpoint_interval": 100,
+  "scalars_jsonl_sha256": "4525445ca59657dcf18bbdddf883071fe300a765ef38e3f2c8793ff4aebe3536",
+  "exported_at": "2026-07-23T06:30:28.593621+00:00",
+  "source_files": {
+    "config_resolved": "runs/20260721T045433955396Z_30c62ebc/config.resolved.yaml",
+    "scalars": "runs/20260721T045433955396Z_30c62ebc/metrics/scalars.jsonl",
+    "events": "runs/20260721T045433955396Z_30c62ebc/metrics/events.json",
+    "metadata": "runs/20260721T045433955396Z_30c62ebc/metadata.json"
+  },
+  "evaluation_count": 400,
+  "csv_fields": {
+    "loss_curve.csv": [
+      "step",
+      "train_cross_entropy",
+      "test_cross_entropy"
+    ],
+    "accuracy_curve.csv": [
+      "step",
+      "train_accuracy",
+      "test_accuracy"
+    ],
+    "margin_curve.csv": [
+      "step",
+      "train_margin_mean",
+      "train_margin_min",
+      "train_margin_q01",
+      "train_margin_q05",
+      "train_margin_q25",
+      "train_margin_median",
+      "train_margin_q75",
+      "train_margin_q95",
+      "train_margin_q99",
+      "test_margin_mean",
+      "test_margin_min",
+      "test_margin_q01",
+      "test_margin_q05",
+      "test_margin_q25",
+      "test_margin_median",
+      "test_margin_q75",
+      "test_margin_q95",
+      "test_margin_q99"
+    ],
+    "parameter_norm_curve.csv": [
+      "step",
+      "parameter_norm_total",
+      "parameter_group_norm_decay",
+      "parameter_group_norm_no_decay",
+      "parameter_norm_blocks.0.attention",
+      "parameter_norm_blocks.0.layer_norm",
+      "parameter_norm_blocks.0.mlp",
+      "parameter_norm_blocks.1.attention",
+      "parameter_norm_blocks.1.layer_norm",
+      "parameter_norm_blocks.1.mlp",
+      "parameter_norm_position_embedding",
+      "parameter_norm_token_embedding",
+      "parameter_norm_unembedding",
+      "parameter_norm_final_norm"
+    ]
+  },
+  "plotted_module_fields": [
+    "parameter_norm_blocks.0.attention",
+    "parameter_norm_blocks.0.layer_norm",
+    "parameter_norm_blocks.0.mlp",
+    "parameter_norm_blocks.1.attention",
+    "parameter_norm_blocks.1.layer_norm",
+    "parameter_norm_blocks.1.mlp",
+    "parameter_norm_position_embedding",
+    "parameter_norm_token_embedding",
+    "parameter_norm_unembedding"
+  ],
+  "transformations": {
+    "smoothing": false,
+    "interpolation": false,
+    "step_resampling": false
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "run_id": "20260721T045433955396Z_30c62ebc",
+  "modulus": 97,
+  "eval_interval": 50,
+  "t_fit": {
+    "status": "reached",
+    "event_step": 100,
+    "threshold": 0.999,
+    "required_consecutive_evaluations": 5,
+    "detected_at_evaluation_step": 300
+  },
+  "t_grok50": {
+    "status": "reached",
+    "event_step": 6050,
+    "threshold": 0.5051546391752577,
+    "required_consecutive_evaluations": 3,
+    "detected_at_evaluation_step": 6150
+  },
+  "t_grok99": {
+    "status": "reached",
+    "event_step": 7000,
+    "threshold": 0.99,
+    "required_consecutive_evaluations": 3,
+    "detected_at_evaluation_step": 7100
+  },
+  "last_evaluated_step": 20000
+}
