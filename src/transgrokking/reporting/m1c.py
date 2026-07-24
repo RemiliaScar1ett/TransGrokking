@@ -7,7 +7,7 @@ import hashlib
 import json
 import os
 import shutil
-import tempfile
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -375,7 +375,8 @@ def export_m1c_results(run_dir: str | Path, output_dir: str | Path) -> Path:
     metadata = _read_json(source / "metadata.json")
 
     destination.parent.mkdir(parents=True, exist_ok=True)
-    temporary = Path(tempfile.mkdtemp(prefix=f".{destination.name}.", dir=destination.parent))
+    temporary = destination.parent / f".{destination.name}.{uuid.uuid4().hex}"
+    temporary.mkdir()
     try:
         copies = {
             "config.resolved.yaml": source / "config.resolved.yaml",
