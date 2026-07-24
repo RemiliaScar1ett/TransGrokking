@@ -118,12 +118,15 @@ def _episode_steps(episodes: dict[str, Any]) -> dict[str, list[int]]:
     if not isinstance(values, list):
         raise ValueError("collapse_episodes.episodes must be a list")
     for episode in values:
-        if not isinstance(episode, dict) or episode.get("episode_type") == "joint":
+        if not isinstance(episode, dict):
+            continue
+        episode_type = episode.get("episode_type")
+        if episode_type not in {"train", "test"}:
             continue
         for source, target in (
             ("onset_step", "onset"),
             ("trough_step", "trough"),
-            ("recovery_step", "recovery"),
+            (f"{episode_type}_recovery_step", "recovery"),
         ):
             value = episode.get(source)
             if type(value) is int:

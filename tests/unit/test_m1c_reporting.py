@@ -211,3 +211,35 @@ def test_export_rejects_source_changed_after_audit(tmp_path: Path) -> None:
         handle.write("{}\n")
     with pytest.raises(ValueError, match="changed after audit"):
         export_m1c_results(source, tmp_path / "results")
+
+
+def test_episode_plot_annotations_use_split_specific_recovery_steps() -> None:
+    steps = m1c._episode_steps(
+        {
+            "episodes": [
+                {
+                    "episode_type": "train",
+                    "onset_step": 100,
+                    "trough_step": 150,
+                    "train_recovery_step": 200,
+                },
+                {
+                    "episode_type": "test",
+                    "onset_step": 110,
+                    "trough_step": 160,
+                    "test_recovery_step": 210,
+                },
+                {
+                    "episode_type": "joint",
+                    "onset_step": 100,
+                    "trough_step": 160,
+                    "joint_recovery_step": 210,
+                },
+            ]
+        }
+    )
+    assert steps == {
+        "onset": [100, 110],
+        "trough": [150, 160],
+        "recovery": [200, 210],
+    }
