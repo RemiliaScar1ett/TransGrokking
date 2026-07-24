@@ -37,16 +37,14 @@ $$
 模型对输入 $(a,b)$ 输出长度为 $p$ 的 logit 向量：
 
 $$
-z_\theta(a,b)
-=
+z_\theta(a,b) =
 \bigl(z_\theta(a,b,0),\ldots,z_\theta(a,b,p-1)\bigr).
 $$
 
 预测概率为
 
 $$
-P_\theta(c\mid a,b)
-=
+P_\theta(c\mid a,b) =
 \frac{\exp z_\theta(a,b,c)}
 {\sum_{j=0}^{p-1}\exp z_\theta(a,b,j)}.
 $$
@@ -54,8 +52,7 @@ $$
 预测类别为
 
 $$
-\widehat y_\theta(a,b)
-=
+\widehat y_\theta(a,b) =
 \arg\max_c z_\theta(a,b,c).
 $$
 
@@ -68,8 +65,7 @@ $$
 softmax 对每个输入上的公共平移保持不变。函数分析前使用中心化 logits：
 
 $$
-\widetilde z(a,b,c)
-=
+\widetilde z(a,b,c) =
 z(a,b,c)
 -
 \frac1p\sum_{j=0}^{p-1}z(a,b,j).
@@ -86,8 +82,7 @@ Grokking 指训练准确率已经接近饱和后，测试性能经过明显延�
 训练拟合时间定义为
 
 $$
-t_{\mathrm{fit}}
-=
+t_{\mathrm{fit}} =
 \min\left\{
  t:\operatorname{Acc}_{\mathrm{tr}}(t)\ge 99.9\%
 \right\},
@@ -98,8 +93,7 @@ $$
 测试跃迁中点定义为
 
 $$
-t_{\mathrm{grok50}}
-=
+t_{\mathrm{grok50}} =
 \min\left\{
  t:
 \operatorname{Acc}_{\mathrm{te}}(t)
@@ -111,8 +105,7 @@ $$
 高泛化时间定义为
 
 $$
-t_{\mathrm{grok99}}
-=
+t_{\mathrm{grok99}} =
 \min\left\{
  t:\operatorname{Acc}_{\mathrm{te}}(t)\ge99\%
 \right\}.
@@ -121,8 +114,7 @@ $$
 Grokking 延迟可以写为
 
 $$
-\Delta t_{\mathrm{grok}}
-=
+\Delta t_{\mathrm{grok}} =
 t_{\mathrm{grok99}}-t_{\mathrm{fit}}.
 $$
 
@@ -137,8 +129,7 @@ $t_{\mathrm{grok99}}$ 都是首次连续阈值事件：事件时间记录第一�
 为区分首次泛化与长期稳定泛化，定义稳定泛化事件
 
 $$
-t_{\mathrm{stable99}}(H)
-=
+t_{\mathrm{stable99}}(H) =
 \min
 \left\{
 t:
@@ -202,8 +193,7 @@ M1 直方图只统计误分类，因此 offset 0 固定为零。该量描述预�
 函数复杂度可以采用最小参数实现代价：
 
 $$
-\mathcal C(z)
-=
+\mathcal C(z) =
 \inf_{\theta:f_\theta=z}
 \|\theta\|_2^2.
 $$
@@ -235,8 +225,7 @@ $$
 对任意 $u,v\in\mathbb Z_p$，定义
 
 $$
-T_{u,v}(a,b,c)
-=
+T_{u,v}(a,b,c) =
 (a+u,b+v,c+u+v),
 $$
 
@@ -253,8 +242,7 @@ $$
 对固定 $(a,b,c)$，集合
 
 $$
-\mathcal O(a,b,c)
-=
+\mathcal O(a,b,c) =
 \left\{
 T_{u,v}(a,b,c):u,v\in\mathbb Z_p
 \right\}
@@ -267,8 +255,7 @@ $$
 对任意函数 $z:\mathbb Z_p^3\to\mathbb R$，定义
 
 $$
-(\Pi z)(a,b,c)
-=
+(\Pi z)(a,b,c) =
 \frac1{p^2}
 \sum_{u,v\in\mathbb Z_p}
 z(a+u,b+v,c+u+v).
@@ -277,24 +264,21 @@ $$
 该算子沿群轨道取平均。投影结果满足
 
 $$
-(\Pi z)(a+s,b+t,c+s+t)
-=
+(\Pi z)(a+s,b+t,c+s+t) =
 (\Pi z)(a,b,c).
 $$
 
 因此存在一维函数 $g:\mathbb Z_p\to\mathbb R$，使得
 
 $$
-(\Pi z)(a,b,c)
-=
+(\Pi z)(a,b,c) =
 g(c-a-b).
 $$
 
 实际计算可以直接使用
 
 $$
-g(d)
-=
+g(d) =
 \frac1{p^2}
 \sum_{a,b\in\mathbb Z_p}
 \widetilde z(a,b,a+b+d).
@@ -309,8 +293,7 @@ $$
 在均匀内积
 
 $$
-\langle f,h\rangle
-=
+\langle f,h\rangle =
 \frac1{p^3}
 \sum_{a,b,c}f(a,b,c)h(a,b,c)
 $$
@@ -343,8 +326,7 @@ $$
 定义非等变能量比例
 
 $$
-D_{\mathrm{eq}}
-=
+D_{\mathrm{eq}} =
 \frac{\|z^\perp\|_2^2}
 {\|\widetilde z\|_2^2}.
 $$
@@ -378,8 +360,7 @@ $$
 任意函数 $f:\mathbb Z_p\to\mathbb C$ 都有展开
 
 $$
-f(x)
-=
+f(x) =
 \sum_{r=0}^{p-1}
 \widehat f(r)\omega^{rx},
 $$
@@ -387,8 +368,7 @@ $$
 其中
 
 $$
-\widehat f(r)
-=
+\widehat f(r) =
 \frac1p\sum_{x=0}^{p-1}f(x)\omega^{-rx}.
 $$
 
@@ -405,8 +385,7 @@ $$
 完整 logits 可以写为
 
 $$
-\widetilde z(a,b,c)
-=
+\widetilde z(a,b,c) =
 \sum_{r_a,r_b,r_c}
 \widehat z(r_a,r_b,r_c)
 \omega^{r_a a+r_b b+r_c c}.
@@ -421,16 +400,14 @@ $$
 利用有限群正交关系
 
 $$
-\mathbf1[d=0]
-=
+\mathbf1[d=0] =
 \frac1p\sum_{r=0}^{p-1}\omega^{rd},
 $$
 
 可以得到
 
 $$
-Y(a,b,c)
-=
+Y(a,b,c) =
 \frac1p\sum_{r=0}^{p-1}
 \omega^{r(a+b-c)}.
 $$
@@ -444,8 +421,7 @@ $$
 这条频率线记为
 
 $$
-\mathcal L
-=
+\mathcal L =
 \{(r,r,-r):r\in\mathbb Z_p\}.
 $$
 
@@ -454,8 +430,7 @@ $$
 对单个 Fourier 模式
 
 $$
-\phi_{r_a,r_b,r_c}(a,b,c)
-=
+\phi_{r_a,r_b,r_c}(a,b,c) =
 \omega^{r_a a+r_b b+r_c c}
 $$
 
@@ -486,8 +461,7 @@ $$
 定义目标频率线能量比例
 
 $$
-E_{\mathrm{line}}
-=
+E_{\mathrm{line}} =
 \frac{
 \sum_r|\widehat z(r,r,-r)|^2
 }{
@@ -499,8 +473,7 @@ $$
 在变换归一化一致时，Parseval 定理给出
 
 $$
-E_{\mathrm{line}}
-=
+E_{\mathrm{line}} =
 A_{\mathrm{eq}}.
 $$
 
@@ -519,16 +492,14 @@ $$
 算法投影只依赖 offset $d=c-a-b$。定义全局算法 margin
 
 $$
-\Gamma
-=
+\Gamma =
 g(0)-\max_{d\ne0}g(d).
 $$
 
 定义非等变残差的最大对抗干扰
 
 $$
-I
-=
+I =
 \max_{a,b,c\ne y}
 \left[
  z^\perp(a,b,c)-z^\perp(a,b,y)
@@ -562,16 +533,14 @@ $$
 定义结构形成时间
 
 $$
-t_{\mathrm{alg}}
-=
+t_{\mathrm{alg}} =
 \min\{t:\Gamma_t>0\}.
 $$
 
 定义结构支配时间
 
 $$
-t_{\mathrm{dom}}
-=
+t_{\mathrm{dom}} =
 \min\{t:\Gamma_t>I_t\}.
 $$
 
@@ -598,8 +567,7 @@ $$
 带平方范数惩罚的目标可写为
 
 $$
-\mathcal L_{\mathrm{reg}}(\theta)
-=
+\mathcal L_{\mathrm{reg}}(\theta) =
 \mathcal L_{\mathrm{data}}(\theta)
 +
 \frac\lambda2\|\theta\|_2^2.
@@ -608,8 +576,7 @@ $$
 连续梯度流满足
 
 $$
-\dot\theta
-=
+\dot\theta =
 -\nabla_\theta\mathcal L_{\mathrm{data}}
 -
 \lambda\theta.
@@ -618,8 +585,7 @@ $$
 AdamW 采用解耦权重衰减。简化更新形式为
 
 $$
-\theta_{t+1}
-=
+\theta_{t+1} =
 (1-\eta_t\lambda)\theta_t
 -
 \eta_tP_t\nabla_\theta\mathcal L_{\mathrm{data}},
@@ -636,8 +602,7 @@ $$
 传递：
 
 $$
-\dot z
-=
+\dot z =
 J_\theta\dot\theta.
 $$
 
@@ -648,8 +613,7 @@ $$
 将模型函数近似分解为
 
 $$
-z_t
-=
+z_t =
 a_tz_{\mathcal A}+b_tz_{\mathcal M},
 $$
 
@@ -658,8 +622,7 @@ $$
 设二者的有效参数代价为 $c_{\mathcal A}$ 和 $c_{\mathcal M}$，正则项近似为
 
 $$
-\mathcal R(a,b)
-=
+\mathcal R(a,b) =
 \frac\lambda2
 \left(
  c_{\mathcal A}a^2+c_{\mathcal M}b^2
@@ -726,8 +689,7 @@ $$
 当前原型使用圆周距离惩罚：
 
 $$
-L_{\mathrm{cong}}
-=
+L_{\mathrm{cong}} =
 \sum_{k=0}^{p-1}
 P_\theta(k\mid a,b)
 \left[
@@ -739,8 +701,7 @@ $$
 令 $\omega=e^{2\pi i/p}$，可写为
 
 $$
-L_{\mathrm{cong}}
-=
+L_{\mathrm{cong}} =
 1-
 \operatorname{Re}
 \left[
@@ -875,8 +836,7 @@ $$
 对 token embedding $E(x,:)$ 沿 token 轴做 DFT：
 
 $$
-\widehat E(r,:)
-=
+\widehat E(r,:) =
 \frac1p\sum_xE(x,:)e^{-2\pi irx/p}.
 $$
 
@@ -889,8 +849,7 @@ $$
 对 hidden state $H_l(a,b,:)$ 做二维 DFT，并训练冻结表示的线性 probe。有效秩使用 participation ratio：
 
 $$
-r_{\mathrm{eff}}
-=
+r_{\mathrm{eff}} =
 \frac{(\sum_i\lambda_i)^2}
 {\sum_i\lambda_i^2}.
 $$
@@ -927,8 +886,7 @@ $$
 定义相对强度
 
 $$
-R_{\mathrm{decay/data}}
-=
+R_{\mathrm{decay/data}} =
 \frac{\|\Delta\theta_{\mathrm{decay}}\|}
 {\|\Delta\theta_{\mathrm{data}}\|}.
 $$
@@ -978,8 +936,7 @@ $$
 定义
 
 $$
-\eta_{\mathrm{margin}}
-=
+\eta_{\mathrm{margin}} =
 \frac{\Gamma}{\|\theta\|_2}
 $$
 
