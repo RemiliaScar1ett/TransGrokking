@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "run_id": "20260724T091041024473Z_c6434d8a",
+  "parent_run_id": "20260721T045433955396Z_30c62ebc",
+  "eval_interval": 50,
+  "final_step": 50000,
+  "t_fit": 100,
+  "t_grok50": 6050,
+  "t_grok99": 7000,
+  "t_stable99": {
+    "status": "not_reached",
+    "event_step": null,
+    "threshold": 0.99,
+    "required_intervals": 100,
+    "required_evaluations": 101,
+    "required_step_span": 5000,
+    "detected_at_evaluation_step": null
+  },
+  "definitions": {
+    "stable_accuracy": 0.99,
+    "stable_window_intervals": 100,
+    "stable_window_evaluations": 101,
+    "stable_window_steps": 5000,
+    "collapse_accuracy": 0.9,
+    "train_recovery_accuracy": 0.999,
+    "test_recovery_accuracy": 0.99,
+    "recovery_consecutive": 3,
+    "joint_tolerance_evaluations": 1,
+    "joint_tolerance_steps": 50,
+    "collapse_gate": "first_event_detected_at_evaluation_step",
+    "frozen_events": {
+      "t_fit": 100,
+      "t_fit_detected_at": 300,
+      "t_grok50": 6050,
+      "t_grok50_detected_at": 6150,
+      "t_grok99": 7000,
+      "t_grok99_detected_at": 7100
+    }
+  },
+  "collapse_count_train": 26,
+  "collapse_count_test": 10,
+  "collapse_count_joint": 10,
+  "last_collapse_step": 49950,
+  "longest_test_window_above_99_evaluations": 44,
+  "longest_test_window_above_99_steps": 2150,
+  "fraction_of_evaluations_above_99": 0.202,
+  "final_train_accuracy": 1.0,
+  "final_test_accuracy": 0.963513970375061,
+  "final_state": "recovering",
+  "source_scalars_sha256": "46e1c03a2aa04659a4e6f396baef217b2431d6735ae9c33cb460e1d816979b08",
+  "measurement_config_hash": "182d1b705795f54acc683e751312b314bd8fd42f531f95d5c1491bb739a7b733"
+}

@@ -1,0 +1,197 @@
+{
+  "schema_version": 1,
+  "canonical_parent_run_id": "20260721T045433955396Z_30c62ebc",
+  "m1c_child_run_id": "20260724T091041024473Z_c6434d8a",
+  "source_git_commit": "8d620a84930c85d617131d1062a01e640b667a32",
+  "parent_checkpoint": "runs/20260721T045433955396Z_30c62ebc/checkpoints/step_020000.pt",
+  "parent_step": 20000,
+  "final_step": 50000,
+  "scientific_config_hash": "b167674594bf0944f0b2afb877d2d8c8f5647c0e4e60c64ebb2a511a9f1f7729",
+  "split_hash": "d0ec6ff924ecc411b9a9d40786f057ec869076b98308e2ecb75da2756c308237",
+  "measurement_config_hash": "182d1b705795f54acc683e751312b314bd8fd42f531f95d5c1491bb739a7b733",
+  "evaluation_interval": 50,
+  "checkpoint_interval": 100,
+  "lineage_git_commits": [
+    {
+      "run_id": "20260721T045021566841Z_ef3ee07b",
+      "git_commit": "98c5347dafe28479817a45f5a2dc61434d869d00"
+    },
+    {
+      "run_id": "20260721T045433955396Z_30c62ebc",
+      "git_commit": "0f96f3a21409894b1f03cee7c792ecb9d79ea0d6"
+    },
+    {
+      "run_id": "20260724T091041024473Z_c6434d8a",
+      "git_commit": "8d620a84930c85d617131d1062a01e640b667a32"
+    }
+  ],
+  "parameter_group_signature": [
+    {
+      "group_name": "decay",
+      "parameter_names": [
+        "blocks.0.attention.output.weight",
+        "blocks.0.attention.qkv.weight",
+        "blocks.0.mlp_in.weight",
+        "blocks.0.mlp_out.weight",
+        "blocks.1.attention.output.weight",
+        "blocks.1.attention.qkv.weight",
+        "blocks.1.mlp_in.weight",
+        "blocks.1.mlp_out.weight",
+        "position_embedding.weight",
+        "token_embedding.weight",
+        "unembedding.weight"
+      ],
+      "weight_decay": 0.5,
+      "learning_rate": 0.001
+    },
+    {
+      "group_name": "no_decay",
+      "parameter_names": [
+        "blocks.0.attention.output.bias",
+        "blocks.0.attention.qkv.bias",
+        "blocks.0.ln1.bias",
+        "blocks.0.ln1.weight",
+        "blocks.0.ln2.bias",
+        "blocks.0.ln2.weight",
+        "blocks.0.mlp_in.bias",
+        "blocks.0.mlp_out.bias",
+        "blocks.1.attention.output.bias",
+        "blocks.1.attention.qkv.bias",
+        "blocks.1.ln1.bias",
+        "blocks.1.ln1.weight",
+        "blocks.1.ln2.bias",
+        "blocks.1.ln2.weight",
+        "blocks.1.mlp_in.bias",
+        "blocks.1.mlp_out.bias",
+        "unembedding.bias"
+      ],
+      "weight_decay": 0.0,
+      "learning_rate": 0.001
+    }
+  ],
+  "scalar_count": 1000,
+  "optimization_diagnostic_count": 600,
+  "source_file_sha256": {
+    "audit/m1c_extension.json": "d4d2ffed8f5e5d7e5c4353370ce8624265888bbeb3cb44d06e93b2a7982d27e7",
+    "collapse_episodes.json": "a5acb72914e4b71d4aad02ab892e19f55488d20cfdb9ee5c27ba27638c1c39b5",
+    "config.resolved.yaml": "065d9cb61a8a894ad574ae2f4e1437e7c772e0dacffcbc88b26bea93d7a15f1f",
+    "error_offsets.jsonl": "68ad54dd97f586bd300c0c54a753d05b852accb2ae653ee8ddfe62621907b4c2",
+    "events.json": "7685b2c3a22a0faacb40c998ce08a00227e68dfd8089a2bddc6999f4d3446a19",
+    "measurement.resolved.yaml": "f1d895ca03cadb06f1e5e42cbed7e36d67f8710335a7e2252d2456a498e457c4",
+    "optimization.jsonl": "e9182bda0411884bad46738a9b983728894c9dd64f05fe49ded8f24a9ea8df70",
+    "scalars.jsonl": "46e1c03a2aa04659a4e6f396baef217b2431d6735ae9c33cb460e1d816979b08",
+    "stability.json": "1f14108af53b8828a2a4a36fd6ec7d99835c4175d70a077be438e6058e6d3655"
+  },
+  "source_files": {
+    "config_resolved": "runs/20260724T091041024473Z_c6434d8a/config.resolved.yaml",
+    "measurement_resolved": "runs/20260724T091041024473Z_c6434d8a/measurement.resolved.yaml",
+    "scalars": "runs/20260724T091041024473Z_c6434d8a/metrics/scalars.jsonl",
+    "error_offsets": "runs/20260724T091041024473Z_c6434d8a/metrics/error_offsets.jsonl",
+    "events": "runs/20260724T091041024473Z_c6434d8a/metrics/events.json",
+    "stability": "runs/20260724T091041024473Z_c6434d8a/metrics/stability.json",
+    "collapse_episodes": "runs/20260724T091041024473Z_c6434d8a/metrics/collapse_episodes.json",
+    "optimization": "runs/20260724T091041024473Z_c6434d8a/metrics/optimization.jsonl",
+    "audit": "runs/20260724T091041024473Z_c6434d8a/audit/m1c_extension.json"
+  },
+  "csv_fields": {
+    "loss_curve.csv": [
+      "step",
+      "train_cross_entropy",
+      "test_cross_entropy"
+    ],
+    "accuracy_curve.csv": [
+      "step",
+      "train_accuracy",
+      "test_accuracy"
+    ],
+    "margin_curve.csv": [
+      "step",
+      "train_margin_mean",
+      "train_margin_min",
+      "train_margin_q01",
+      "train_margin_q05",
+      "train_margin_q25",
+      "train_margin_median",
+      "train_margin_q75",
+      "train_margin_q95",
+      "train_margin_q99",
+      "test_margin_mean",
+      "test_margin_min",
+      "test_margin_q01",
+      "test_margin_q05",
+      "test_margin_q25",
+      "test_margin_median",
+      "test_margin_q75",
+      "test_margin_q95",
+      "test_margin_q99"
+    ],
+    "parameter_norm_curve.csv": [
+      "step",
+      "parameter_norm_total",
+      "parameter_norm_blocks.0.attention",
+      "parameter_norm_blocks.0.layer_norm",
+      "parameter_norm_blocks.0.mlp",
+      "parameter_norm_blocks.1.attention",
+      "parameter_norm_blocks.1.layer_norm",
+      "parameter_norm_blocks.1.mlp",
+      "parameter_norm_position_embedding",
+      "parameter_norm_token_embedding",
+      "parameter_norm_unembedding",
+      "parameter_norm_final_norm",
+      "parameter_group_norm_decay",
+      "parameter_group_norm_no_decay"
+    ],
+    "optimization_curve.csv": [
+      "step",
+      "parameter_tensor_count",
+      "parameter_element_count",
+      "updated_parameter_tensor_count",
+      "updated_parameter_element_count",
+      "gradient_l2_total",
+      "gradient_l2_decay_group",
+      "gradient_l2_no_decay_group",
+      "total_update_l2",
+      "data_update_l2",
+      "decay_update_l2",
+      "data_to_decay_ratio",
+      "data_decay_cosine",
+      "decay_group_total_update_l2",
+      "no_decay_group_total_update_l2",
+      "adam_first_moment_l2",
+      "adam_first_moment_l2_decay_group",
+      "adam_first_moment_l2_no_decay_group",
+      "adam_second_moment_mean",
+      "adam_second_moment_rms",
+      "adam_second_moment_max"
+    ]
+  },
+  "figure_files": [
+    "figures/loss_linear.png",
+    "figures/loss_linear.svg",
+    "figures/loss_log.png",
+    "figures/loss_log.svg",
+    "figures/accuracy.png",
+    "figures/accuracy.svg",
+    "figures/margin_train.png",
+    "figures/margin_train.svg",
+    "figures/margin_test.png",
+    "figures/margin_test.svg",
+    "figures/parameter_norm_groups.png",
+    "figures/parameter_norm_groups.svg",
+    "figures/parameter_norm_modules.png",
+    "figures/parameter_norm_modules.svg",
+    "figures/optimization_update_norms.png",
+    "figures/optimization_update_norms.svg",
+    "figures/adam_moments.png",
+    "figures/adam_moments.svg",
+    "figures/collapse_timeline.png",
+    "figures/collapse_timeline.svg",
+    "figures/stable_window_timeline.png",
+    "figures/stable_window_timeline.svg"
+  ],
+  "exported_at": "2026-07-24T09:34:10.660771+00:00",
+  "smoothing": false,
+  "interpolation": false,
+  "outlier_deletion": false,
+  "missing_step_imputation": false
+}

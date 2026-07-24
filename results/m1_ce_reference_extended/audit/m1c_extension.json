@@ -1,0 +1,153 @@
+{
+  "schema_version": 1,
+  "profile": "m1c-extension",
+  "run_id": "20260724T091041024473Z_c6434d8a",
+  "canonical_run_id": "20260721T045433955396Z_30c62ebc",
+  "canonical_parent_run_id": "20260721T045433955396Z_30c62ebc",
+  "lineage": [
+    "20260721T045021566841Z_ef3ee07b",
+    "20260721T045433955396Z_30c62ebc",
+    "20260724T091041024473Z_c6434d8a"
+  ],
+  "extension_lineage": [
+    "20260724T091041024473Z_c6434d8a"
+  ],
+  "scientific_config_hash": "b167674594bf0944f0b2afb877d2d8c8f5647c0e4e60c64ebb2a511a9f1f7729",
+  "split_hash": "d0ec6ff924ecc411b9a9d40786f057ec869076b98308e2ecb75da2756c308237",
+  "measurement_config_hash": "182d1b705795f54acc683e751312b314bd8fd42f531f95d5c1491bb739a7b733",
+  "canonical_checkpoint_sha256": "7d3ee179b44e6bf7c97880cd1ce3bbf2025d27451afd508f13f913d0b01e647a",
+  "parameter_group_signature": [
+    {
+      "group_name": "decay",
+      "parameter_names": [
+        "blocks.0.attention.output.weight",
+        "blocks.0.attention.qkv.weight",
+        "blocks.0.mlp_in.weight",
+        "blocks.0.mlp_out.weight",
+        "blocks.1.attention.output.weight",
+        "blocks.1.attention.qkv.weight",
+        "blocks.1.mlp_in.weight",
+        "blocks.1.mlp_out.weight",
+        "position_embedding.weight",
+        "token_embedding.weight",
+        "unembedding.weight"
+      ],
+      "weight_decay": 0.5,
+      "learning_rate": 0.001
+    },
+    {
+      "group_name": "no_decay",
+      "parameter_names": [
+        "blocks.0.attention.output.bias",
+        "blocks.0.attention.qkv.bias",
+        "blocks.0.ln1.bias",
+        "blocks.0.ln1.weight",
+        "blocks.0.ln2.bias",
+        "blocks.0.ln2.weight",
+        "blocks.0.mlp_in.bias",
+        "blocks.0.mlp_out.bias",
+        "blocks.1.attention.output.bias",
+        "blocks.1.attention.qkv.bias",
+        "blocks.1.ln1.bias",
+        "blocks.1.ln1.weight",
+        "blocks.1.ln2.bias",
+        "blocks.1.ln2.weight",
+        "blocks.1.mlp_in.bias",
+        "blocks.1.mlp_out.bias",
+        "unembedding.bias"
+      ],
+      "weight_decay": 0.0,
+      "learning_rate": 0.001
+    }
+  ],
+  "audited_source_sha256": {
+    "config.resolved.yaml": "065d9cb61a8a894ad574ae2f4e1437e7c772e0dacffcbc88b26bea93d7a15f1f",
+    "measurement.resolved.yaml": "f1d895ca03cadb06f1e5e42cbed7e36d67f8710335a7e2252d2456a498e457c4",
+    "metadata.json": "8be35f6bafb3f7a65ac4caa0bf3a9fd347e827319942bb0b33fe61d397f77410",
+    "status.json": "fcfa099fa7a1d4a9401a6e4fcf519f6f743bbb877ae97f9317854c32fac9549f",
+    "metrics/scalars.jsonl": "46e1c03a2aa04659a4e6f396baef217b2431d6735ae9c33cb460e1d816979b08",
+    "metrics/error_offsets.jsonl": "68ad54dd97f586bd300c0c54a753d05b852accb2ae653ee8ddfe62621907b4c2",
+    "metrics/events.json": "7685b2c3a22a0faacb40c998ce08a00227e68dfd8089a2bddc6999f4d3446a19",
+    "metrics/stability.json": "1f14108af53b8828a2a4a36fd6ec7d99835c4175d70a077be438e6058e6d3655",
+    "metrics/collapse_episodes.json": "a5acb72914e4b71d4aad02ab892e19f55488d20cfdb9ee5c27ba27638c1c39b5",
+    "metrics/optimization.jsonl": "e9182bda0411884bad46738a9b983728894c9dd64f05fe49ded8f24a9ea8df70",
+    "checkpoints/manifest.json": "fa79cb1e56551067c574628b9ef0ffc2953ad3183ca4a23d054e97e285fc55ee",
+    "checkpoints/step_050000.pt": "59ca2965f9c512021173341d59e7861fa64979d84e9579d4e454c9cc6040fd7c"
+  },
+  "evaluation_interval": 50,
+  "checkpoint_interval": 100,
+  "lineage_git_commits": [
+    {
+      "run_id": "20260721T045021566841Z_ef3ee07b",
+      "git_commit": "98c5347dafe28479817a45f5a2dc61434d869d00"
+    },
+    {
+      "run_id": "20260721T045433955396Z_30c62ebc",
+      "git_commit": "0f96f3a21409894b1f03cee7c792ecb9d79ea0d6"
+    },
+    {
+      "run_id": "20260724T091041024473Z_c6434d8a",
+      "git_commit": "8d620a84930c85d617131d1062a01e640b667a32"
+    }
+  ],
+  "final_global_step": 50000,
+  "evaluation_count": 1000,
+  "optimization_diagnostic_count": 600,
+  "t_fit": 100,
+  "t_grok50": 6050,
+  "t_grok99": 7000,
+  "t_stable99": {
+    "status": "not_reached",
+    "event_step": null,
+    "threshold": 0.99,
+    "required_intervals": 100,
+    "required_evaluations": 101,
+    "required_step_span": 5000,
+    "detected_at_evaluation_step": null
+  },
+  "collapse_count_train": 26,
+  "collapse_count_test": 10,
+  "collapse_count_joint": 10,
+  "last_collapse_step": 49950,
+  "final_state": "recovering",
+  "peak_allocated_bytes": 230345216,
+  "peak_reserved_bytes": 373293056,
+  "checks": {
+    "terminal_completed": true,
+    "canonical_lineage": true,
+    "canonical_source_checkpoint": true,
+    "canonical_metric_prefix": true,
+    "config_only_max_steps_changed": true,
+    "measurement_identity": true,
+    "scientific_config_hash": true,
+    "split_hash": true,
+    "optimizer_parameter_groups": true,
+    "formal_gpu_fp32_ce_only": true,
+    "scalar_timeline": true,
+    "error_offset_timeline": true,
+    "optimization_timeline": true,
+    "frozen_first_events": true,
+    "stability_recomputed": true,
+    "checkpoint_lineage": true,
+    "offline_evaluator": true,
+    "peak_vram": true,
+    "git_provenance": true,
+    "frozen_m1b_results": true,
+    "no_m2_plus_artifacts": true
+  },
+  "checkpoint_details": {
+    "checkpoint_count_across_lineage": 301,
+    "unique_checkpoint_steps": 301,
+    "errors": []
+  },
+  "frozen_manifest_details": {
+    "manifest": "E:\\Workplace\\Trans\\configs\\analysis\\m1b_frozen_manifest.json",
+    "root": "E:\\Workplace\\Trans\\results\\m1_ce_reference",
+    "expected_file_count": 23,
+    "actual_file_count": 23,
+    "errors": []
+  },
+  "forbidden_files": [],
+  "failed_checks": [],
+  "passed": true
+}
