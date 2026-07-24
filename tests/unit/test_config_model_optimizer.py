@@ -137,6 +137,20 @@ def test_formal_baseline_configuration_is_frozen() -> None:
     assert config.loss.congruence_weight == 0.0
 
 
+def test_m1c_extension_changes_only_max_steps() -> None:
+    baseline = load_config("configs/baseline_ce.yaml")
+    extension = load_config("configs/ce_reference_extend_50000.yaml")
+    baseline_raw = baseline.to_dict()
+    extension_raw = extension.to_dict()
+    assert extension_raw["optimization"]["max_steps"] == 50000
+    baseline_raw["optimization"]["max_steps"] = 50000
+    assert extension_raw == baseline_raw
+    assert extension.scientific_hash() == baseline.scientific_hash()
+    assert extension.scientific_hash() == (
+        "b167674594bf0944f0b2afb877d2d8c8f5647c0e4e60c64ebb2a511a9f1f7729"
+    )
+
+
 def test_policy_can_toggle_embeddings_biases_and_layer_norm() -> None:
     raw = load_config("configs/smoke.yaml").to_dict()
     policy = raw["optimization"]["decay_policy"]

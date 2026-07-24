@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import subprocess
@@ -10,12 +11,23 @@ import torch
 import yaml
 
 from transgrokking.config import config_from_dict, load_config
-from transgrokking.training.artifacts import load_manifest, scalar_steps
+from transgrokking.training.artifacts import (
+    load_manifest,
+    load_optimization_records,
+    load_scalar_records,
+    scalar_steps,
+    update_events,
+)
+from transgrokking.training.diagnostics import (
+    capture_optimization_step,
+    finalize_optimization_step,
+)
 from transgrokking.training.optimizer import (
     build_adamw,
     validate_optimizer_parameter_identity,
 )
 from transgrokking.training.trainer import build_model, train
+from transgrokking.utils.atomic import write_json_lines
 from transgrokking.utils.doctor import collect_doctor_report, validate_doctor_report
 from transgrokking.utils.reproducibility import configure_reproducibility
 
@@ -103,6 +115,99 @@ def test_real_cli_writes_complete_artifacts_and_branches_completed_run(tmp_path:
     assert scalar_steps(child / "metrics/scalars.jsonl") == [1, 2, 3]
 
 
+def test_real_cli_m1c_measurement_child_preserves_parent(tmp_path: Path) -> None:
+    raw = load_config("configs/smoke.yaml").to_dict()
+    raw["logging"]["runs_dir"] = str(tmp_path / "runs")
+    raw["optimization"]["max_steps"] = 7
+    parent_config = config_from_dict(raw)
+    parent = train(parent_config)
+    scalars_path = parent / "metrics" / "scalars.jsonl"
+    scalars = load_scalar_records(scalars_path)
+    test_accuracies = [0.0, 0.6, 0.6, 0.6, 1.0, 1.0, 1.0]
+    for record, test_accuracy in zip(scalars, test_accuracies, strict=True):
+        record["train_accuracy"] = 1.0
+        record["test_accuracy"] = test_accuracy
+    write_json_lines(scalars_path, scalars)
+    update_events(parent, 7, 1, parent_config.events, preserve_existing=False)
+    events = json.loads((parent / "metrics/events.json").read_text(encoding="utf-8"))
+    assert [events[name]["event_step"] for name in ("t_fit", "t_grok50", "t_grok99")] == [
+        1,
+        2,
+        5,
+    ]
+
+    checkpoint = parent / "checkpoints" / "step_000007.pt"
+    checkpoint_hash = hashlib.sha256(checkpoint.read_bytes()).hexdigest()
+    metadata = json.loads((parent / "metadata.json").read_text(encoding="utf-8"))
+    measurement = {
+        "schema_version": 1,
+        "profile": "m1c-extension",
+        "source": {
+            "canonical_run_id": parent.name,
+            "canonical_checkpoint_step": 7,
+            "canonical_checkpoint_sha256": checkpoint_hash,
+            "scientific_config_hash": parent_config.scientific_hash(),
+            "split_hash": metadata["split_hash"],
+            "eval_interval": 1,
+            "checkpoint_interval": 1,
+        },
+        "frozen_events": {
+            "t_fit": 1,
+            "t_fit_detected_at": 5,
+            "t_grok50": 2,
+            "t_grok50_detected_at": 4,
+            "t_grok99": 5,
+            "t_grok99_detected_at": 7,
+        },
+        "stability": {
+            "stable_accuracy": 0.99,
+            "stable_window_intervals": 2,
+            "collapse_accuracy": 0.9,
+            "train_recovery_accuracy": 0.999,
+            "test_recovery_accuracy": 0.99,
+            "recovery_consecutive": 2,
+            "joint_tolerance_evaluations": 1,
+        },
+    }
+    measurement_path = tmp_path / "measurement.yaml"
+    measurement_path.write_text(yaml.safe_dump(measurement, sort_keys=False), encoding="utf-8")
+    raw["optimization"]["max_steps"] = 9
+    child_path = tmp_path / "child.yaml"
+    child_path.write_text(yaml.safe_dump(raw, sort_keys=False), encoding="utf-8")
+    protected = {
+        path.relative_to(parent).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in parent.rglob("*")
+        if path.is_file()
+    }
+
+    result = _cli(
+        "train",
+        "--config",
+        str(child_path),
+        "--measurement-config",
+        str(measurement_path),
+        "--resume-from",
+        str(checkpoint),
+        "--resume-mode",
+        "auto",
+    )
+    assert result.returncode == 0, result.stderr
+    child = Path(result.stdout.strip().splitlines()[-1])
+    assert child != parent
+    assert scalar_steps(child / "metrics/scalars.jsonl") == list(range(1, 10))
+    assert [
+        record["step"] for record in load_optimization_records(child / "metrics/optimization.jsonl")
+    ] == [8, 9]
+    assert (child / "metrics/stability.json").is_file()
+    assert (child / "metrics/collapse_episodes.json").is_file()
+    after = {
+        path.relative_to(parent).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in parent.rglob("*")
+        if path.is_file()
+    }
+    assert after == protected
+
+
 @pytest.mark.cuda
 def test_target_gpu_one_update_records_peak_memory(tmp_path: Path) -> None:
     configure_reproducibility(1, True)
@@ -124,7 +229,9 @@ def test_target_gpu_one_update_records_peak_memory(tmp_path: Path) -> None:
     tokens = torch.tensor([[1, 2], [2, 3]], device="cuda:0")
     targets = torch.tensor([3, 5], device="cuda:0")
     torch.nn.functional.cross_entropy(model(tokens)[:, -1], targets).backward()
+    capture = capture_optimization_step(model, optimizer)
     optimizer.step()
+    diagnostic = finalize_optimization_step(capture, model, optimizer, step=1)
     changes = [
         (parameter.detach() - before[name]).abs().max()
         for name, parameter in model.named_parameters()
@@ -147,6 +254,21 @@ def test_target_gpu_one_update_records_peak_memory(tmp_path: Path) -> None:
     )
     assert torch.cuda.max_memory_allocated("cuda:0") > 0
     assert torch.cuda.max_memory_reserved("cuda:0") > 0
+    assert diagnostic["step"] == 1
+    assert all(
+        value is None or not isinstance(value, float) or torch.isfinite(torch.tensor(value))
+        for value in diagnostic.values()
+    )
+    reference = build_model(config).to("cuda:0", dtype=torch.float32)
+    reference.load_state_dict(before)
+    reference_optimizer, _ = build_adamw(reference, config.optimization)
+    reference_optimizer.zero_grad(set_to_none=True)
+    torch.nn.functional.cross_entropy(reference(tokens)[:, -1], targets).backward()
+    reference_optimizer.step()
+    assert all(
+        torch.equal(parameter, dict(reference.named_parameters())[name])
+        for name, parameter in model.named_parameters()
+    )
     run_dir = train(config)
     metadata = json.loads((run_dir / "metadata.json").read_text(encoding="utf-8"))
     status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))

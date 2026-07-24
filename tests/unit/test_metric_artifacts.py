@@ -9,9 +9,13 @@ from transgrokking.config import load_config
 from transgrokking.training.artifacts import (
     append_error_offsets,
     append_evaluation_artifacts,
+    append_optimization,
     load_error_offset_records,
+    load_optimization_records,
     load_scalar_records,
     reconcile_metric_files,
+    validate_branch_metric_files,
+    validate_metric_files,
 )
 from transgrokking.utils import atomic
 
@@ -35,6 +39,15 @@ def _scalar(step: int) -> dict[str, object]:
         "step": step,
         "train_accuracy": 0.0,
         "test_accuracy": 0.0,
+    }
+
+
+def _optimization(step: int) -> dict[str, object]:
+    return {
+        "schema_version": 1,
+        "step": step,
+        "gradient_l2_total": 1.0,
+        "data_decay_cosine": None,
     }
 
 
@@ -67,6 +80,75 @@ def test_nonfinite_scalar_is_rejected_without_changing_committed_file(tmp_path: 
         append_evaluation_artifacts(tmp_path, invalid, _offsets(2), 3, 1, config.events)
     assert scalar_path.read_bytes() == original
     reconcile_metric_files(tmp_path)
+
+
+def test_optimization_tail_uses_scalar_as_commit_marker(tmp_path: Path) -> None:
+    (tmp_path / "metrics").mkdir()
+    config = load_config("configs/smoke.yaml")
+    append_evaluation_artifacts(
+        tmp_path,
+        _scalar(1),
+        _offsets(1),
+        3,
+        1,
+        config.events,
+        optimization_record=_optimization(1),
+    )
+    append_error_offsets(tmp_path / "metrics/error_offsets.jsonl", _offsets(2))
+    append_optimization(tmp_path / "metrics/optimization.jsonl", _optimization(2))
+    reconcile_metric_files(tmp_path, diagnostics_start_step=0)
+    assert [
+        record["step"]
+        for record in load_optimization_records(tmp_path / "metrics/optimization.jsonl")
+    ] == [1]
+    assert len(load_error_offset_records(tmp_path / "metrics/error_offsets.jsonl")) == 2
+
+
+def test_branch_validation_accepts_only_a_single_read_only_uncommitted_tail(
+    tmp_path: Path,
+) -> None:
+    (tmp_path / "metrics").mkdir()
+    config = load_config("configs/smoke.yaml")
+    append_evaluation_artifacts(
+        tmp_path,
+        _scalar(1),
+        _offsets(1),
+        3,
+        1,
+        config.events,
+        optimization_record=_optimization(1),
+    )
+    append_error_offsets(tmp_path / "metrics/error_offsets.jsonl", _offsets(2))
+    append_optimization(tmp_path / "metrics/optimization.jsonl", _optimization(2))
+    before = {path.name: path.read_bytes() for path in (tmp_path / "metrics").iterdir()}
+    validate_branch_metric_files(tmp_path, diagnostics_start_step=0)
+    assert {path.name: path.read_bytes() for path in (tmp_path / "metrics").iterdir()} == before
+
+    append_error_offsets(tmp_path / "metrics/error_offsets.jsonl", _offsets(3))
+    with pytest.raises(ValueError, match="uncommitted error-offset tail"):
+        validate_branch_metric_files(tmp_path, diagnostics_start_step=0)
+
+
+def test_instrumented_validation_rejects_missing_optimization_file(tmp_path: Path) -> None:
+    (tmp_path / "metrics").mkdir()
+    config = load_config("configs/smoke.yaml")
+    append_evaluation_artifacts(tmp_path, _scalar(1), _offsets(1), 3, 1, config.events)
+    with pytest.raises(ValueError, match="scalar and optimization steps differ"):
+        validate_metric_files(tmp_path, diagnostics_start_step=0)
+    with pytest.raises(ValueError, match="lack optimization diagnostics"):
+        validate_branch_metric_files(tmp_path, diagnostics_start_step=0)
+
+
+def test_nonfinite_optimization_is_rejected_before_write(tmp_path: Path) -> None:
+    (tmp_path / "metrics").mkdir()
+    path = tmp_path / "metrics/optimization.jsonl"
+    append_optimization(path, _optimization(1))
+    before = path.read_bytes()
+    invalid = _optimization(2)
+    invalid["gradient_l2_total"] = float("inf")
+    with pytest.raises(ValueError, match="finite"):
+        append_optimization(path, invalid)
+    assert path.read_bytes() == before
 
 
 def test_jsonl_replace_failure_preserves_committed_metric_files(

@@ -1,4 +1,4 @@
-"""Stable command-line entry points for M0."""
+"""Stable command-line entry points for M0 and M1."""
 
 from __future__ import annotations
 
@@ -11,6 +11,8 @@ from transgrokking.config import load_config
 from transgrokking.data import generate_modular_addition, split_artifact
 from transgrokking.metrics.audit import audit_m1_ce_reference
 from transgrokking.metrics.evaluator import evaluate_run_checkpoint
+from transgrokking.metrics.stability import load_measurement_config
+from transgrokking.reporting import export_m1c_results
 from transgrokking.training.trainer import train
 from transgrokking.utils.atomic import torch_save
 from transgrokking.utils.doctor import collect_doctor_report, validate_doctor_report
@@ -45,6 +47,11 @@ def _train(args: argparse.Namespace) -> int:
         load_config(args.config),
         resume_from=args.resume_from,
         resume_mode=args.resume_mode,
+        measurement_config=(
+            load_measurement_config(args.measurement_config)
+            if args.measurement_config is not None
+            else None
+        ),
     )
     print(run_dir)
     return 0
@@ -57,9 +64,20 @@ def _evaluate(args: argparse.Namespace) -> int:
 
 
 def _audit(args: argparse.Namespace) -> int:
-    result = audit_m1_ce_reference(args.run_dir)
+    if args.profile == "m1c-extension":
+        from transgrokking.metrics.audit_m1c import audit_m1c_extension
+
+        result = audit_m1c_extension(args.run_dir)
+    else:
+        result = audit_m1_ce_reference(args.run_dir)
     print(json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False))
     return 0 if result["passed"] else 1
+
+
+def _export_m1c(args: argparse.Namespace) -> int:
+    output = export_m1c_results(args.run_dir, args.output_dir)
+    print(output)
+    return 0
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -78,6 +96,7 @@ def build_parser() -> argparse.ArgumentParser:
     training.add_argument("--config", required=True)
     training.add_argument("--resume-from")
     training.add_argument("--resume-mode", choices=("auto", "inplace", "branch"), default="auto")
+    training.add_argument("--measurement-config")
     training.set_defaults(handler=_train)
     evaluation = subparsers.add_parser("evaluate")
     evaluation.add_argument("--run-dir", required=True)
@@ -85,7 +104,16 @@ def build_parser() -> argparse.ArgumentParser:
     evaluation.set_defaults(handler=_evaluate)
     audit = subparsers.add_parser("audit")
     audit.add_argument("--run-dir", required=True)
+    audit.add_argument(
+        "--profile",
+        choices=("m1-ce-reference", "m1c-extension"),
+        default="m1-ce-reference",
+    )
     audit.set_defaults(handler=_audit)
+    export_m1c = subparsers.add_parser("export-m1c")
+    export_m1c.add_argument("--run-dir", required=True)
+    export_m1c.add_argument("--output-dir", required=True)
+    export_m1c.set_defaults(handler=_export_m1c)
     return parser
 
 

@@ -1,0 +1,25 @@
+schema_version: 1
+profile: m1c-extension
+source:
+  canonical_run_id: 20260721T045433955396Z_30c62ebc
+  canonical_checkpoint_step: 20000
+  canonical_checkpoint_sha256: 7d3ee179b44e6bf7c97880cd1ce3bbf2025d27451afd508f13f913d0b01e647a
+  scientific_config_hash: b167674594bf0944f0b2afb877d2d8c8f5647c0e4e60c64ebb2a511a9f1f7729
+  split_hash: d0ec6ff924ecc411b9a9d40786f057ec869076b98308e2ecb75da2756c308237
+  eval_interval: 50
+  checkpoint_interval: 100
+frozen_events:
+  t_fit: 100
+  t_fit_detected_at: 300
+  t_grok50: 6050
+  t_grok50_detected_at: 6150
+  t_grok99: 7000
+  t_grok99_detected_at: 7100
+stability:
+  stable_accuracy: 0.99
+  stable_window_intervals: 100
+  collapse_accuracy: 0.9
+  train_recovery_accuracy: 0.999
+  test_recovery_accuracy: 0.99
+  recovery_consecutive: 3
+  joint_tolerance_evaluations: 1

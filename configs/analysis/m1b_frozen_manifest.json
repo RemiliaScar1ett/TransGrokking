@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "root": "results/m1_ce_reference",
+  "files": [
+    {"path": "accuracy_curve.csv", "size": 11614, "sha256": "2de6376e2d85ac41c3fa269d5b573939da3f9c2b3d509003bc79afb1d3bc42fb"},
+    {"path": "config.resolved.yaml", "size": 933, "sha256": "ef5f7f9f90af7b421a88358a0fec15d6da906b0449fe8d78ec1b1533adbd2ae2"},
+    {"path": "events.json", "size": 683, "sha256": "e15e7a7f9ff591f61cb907a5a58b0c22f978930faae257b43f5f1538d9d70586"},
+    {"path": "figures/accuracy.png", "size": 161596, "sha256": "dc546377f7d2f6a17122127e1afec6d1bea06059f08439aadb0f4e3945500f89"},
+    {"path": "figures/accuracy.svg", "size": 50152, "sha256": "4688927b410a30a7b87f70299f2c2ceec497308f3db94bc5eea21a49fefae97f"},
+    {"path": "figures/loss_linear.png", "size": 113679, "sha256": "dcfa12f7277b0f03da1891ed0aa9f1062565e7a335842a0f830a43b3a2e4cb93"},
+    {"path": "figures/loss_linear.svg", "size": 50309, "sha256": "bbe19468a6efb3b3020816fbd1be6166ccf313c94250729b89932d32a5a901d5"},
+    {"path": "figures/loss_log.png", "size": 192541, "sha256": "6170690cde53f743d6f1aeaabd13033c5b7c4f0ce66b2ad434d1e0393e6e321e"},
+    {"path": "figures/loss_log.svg", "size": 62685, "sha256": "7acbc0352ccde0bf99295891582445460120a17904ee69c6ff853789f17221ac"},
+    {"path": "figures/margin_test.png", "size": 294958, "sha256": "b0e6ae1036af8563c4e4b6ae21eb01f64bfe2976c9d95c240a1aed757d115220"},
+    {"path": "figures/margin_test.svg", "size": 103836, "sha256": "ef3c018092b928ec5227078817b85d5495a1fcc61865488506d035109e91fa24"},
+    {"path": "figures/margin_train.png", "size": 381635, "sha256": "faee9b48cdddebdd52fe343dd4458461e5ca207b0ceabc9d8e007349fba6f39d"},
+    {"path": "figures/margin_train.svg", "size": 112771, "sha256": "0fe8f693023dd69ba68bb86f7f141b46de0b03b6b46b8e04ee2d52e1a766e650"},
+    {"path": "figures/parameter_norm_groups.png", "size": 137531, "sha256": "b2231b2fa9402bb3e83a4be1d6df78a5863e40f98345a428e5023181178714fb"},
+    {"path": "figures/parameter_norm_groups.svg", "size": 58141, "sha256": "133a34f456908ae5283d908c187de302e53509d32fb698fb3efd495b3ecf137d"},
+    {"path": "figures/parameter_norm_modules.png", "size": 215911, "sha256": "14a6037a29aa254f2697f9eb07a5912145031d2bb338fe6afaa014b9acea2223"},
+    {"path": "figures/parameter_norm_modules.svg", "size": 89448, "sha256": "ef0807769a840b8beff0796ef011fb8acbc7742c063d3c748f0e853e19ce75a4"},
+    {"path": "loss_curve.csv", "size": 18891, "sha256": "3561bf896e71f0059434403a412f0cb24ebe24e6acc1f042595127ff120f05ce"},
+    {"path": "margin_curve.csv", "size": 135781, "sha256": "c59004c86ae17b364bfc8ddfd402ba46ba122ba3616b9bd79f5444f2ae7f25a0"},
+    {"path": "parameter_norm_curve.csv", "size": 91929, "sha256": "9c6ef60677aeade07bf76b0fb0c8db3b9726258bef70a079245834b39cc79527"},
+    {"path": "provenance.json", "size": 2782, "sha256": "2b30ba8cf9e6f20523f8c40157276c40f7200a6d8aed0359d7855df7377e0595"},
+    {"path": "README.md", "size": 2551, "sha256": "8a0536197b15fabbf19fb39604978ec0484f32cd54e97a9f9f9430bde742efa0"},
+    {"path": "scalars.jsonl", "size": 645927, "sha256": "4525445ca59657dcf18bbdddf883071fe300a765ef38e3f2c8793ff4aebe3536"}
+  ]
+}

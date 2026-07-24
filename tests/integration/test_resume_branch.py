@@ -9,11 +9,12 @@ import pytest
 from transgrokking.config import config_from_dict, load_config
 from transgrokking.models import TransparentTransformer
 from transgrokking.training.artifacts import (
+    append_error_offsets,
     load_error_offset_records,
     load_manifest,
     scalar_steps,
 )
-from transgrokking.training.trainer import train
+from transgrokking.training.trainer import _resume_plan, train
 
 
 def _config(tmp_path: Path, max_steps: int):
@@ -43,6 +44,27 @@ def test_interrupted_latest_checkpoint_resumes_inplace_with_higher_limit(tmp_pat
     assert events["last_evaluated_step"] == 3
     status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
     assert status["state"] == "completed"
+
+
+def test_instrumented_resume_forces_child_even_when_inplace_would_be_safe(
+    tmp_path: Path,
+) -> None:
+    run_dir = train(_config(tmp_path, 2), stop_after=1)
+    checkpoint = run_dir / "checkpoints" / "step_000001.pt"
+    mode, *_ = _resume_plan(
+        _config(tmp_path, 3),
+        checkpoint.resolve(),
+        "auto",
+        force_branch=True,
+    )
+    assert mode == "branch"
+    with pytest.raises(ValueError, match="must create a child"):
+        _resume_plan(
+            _config(tmp_path, 3),
+            checkpoint.resolve(),
+            "inplace",
+            force_branch=True,
+        )
 
 
 def test_completed_and_nonlatest_resume_create_traceable_child_runs(tmp_path: Path) -> None:
@@ -86,6 +108,45 @@ def test_scientific_change_is_rejected_and_target_must_increase(tmp_path: Path) 
         train(_config(tmp_path, 1), resume_from=checkpoint)
 
 
+def test_branch_discards_uncommitted_tail_without_mutating_parent(tmp_path: Path) -> None:
+    parent = train(_config(tmp_path, 2))
+    checkpoint = parent / "checkpoints" / "step_000002.pt"
+    offset_path = parent / "metrics" / "error_offsets.jsonl"
+    append_error_offsets(
+        offset_path,
+        [
+            {
+                "schema_version": 1,
+                "step": 3,
+                "split": split,
+                "modulus": 7,
+                "counts": [0] * 7,
+            }
+            for split in ("train", "test")
+        ],
+    )
+    before = {
+        path.relative_to(parent).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in parent.rglob("*")
+        if path.is_file()
+    }
+    child = train(_config(tmp_path, 3), resume_from=checkpoint)
+    after = {
+        path.relative_to(parent).as_posix(): hashlib.sha256(path.read_bytes()).hexdigest()
+        for path in parent.rglob("*")
+        if path.is_file()
+    }
+    assert after == before
+    assert child != parent
+    assert scalar_steps(child / "metrics" / "scalars.jsonl") == [1, 2, 3]
+    child_offsets = load_error_offset_records(child / "metrics/error_offsets.jsonl")
+    assert [child_offsets[index]["step"] for index in range(0, len(child_offsets), 2)] == [
+        1,
+        2,
+        3,
+    ]
+
+
 def test_initialization_failure_and_keyboard_interrupt_leave_recoverable_status(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -116,3 +177,23 @@ def test_initialization_failure_and_keyboard_interrupt_leave_recoverable_status(
     assert interrupted["state"] == "interrupted"
     emergency = Path(interrupted["emergency_checkpoint"])
     assert emergency.is_file()
+
+
+def test_interrupt_inside_optimizer_step_is_not_serialized_as_safe(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import torch
+
+    def interrupt_step(self, closure=None):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(torch.optim.AdamW, "step", interrupt_step)
+    with pytest.raises(KeyboardInterrupt):
+        train(_config(tmp_path, 2))
+    run_dir = next(path for path in tmp_path.iterdir() if path.is_dir())
+    status = json.loads((run_dir / "status.json").read_text(encoding="utf-8"))
+    assert status["state"] == "interrupted"
+    assert status["optimizer_update_started"] is True
+    assert status["optimizer_update_completed"] is False
+    assert status["emergency_checkpoint"] is None
+    assert [entry["step"] for entry in load_manifest(run_dir)] == [0]

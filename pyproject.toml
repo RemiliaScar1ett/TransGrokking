@@ -15,6 +15,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=9,<10", "ruff>=0.9,<1"]
+analysis = ["matplotlib>=3.10,<3.11"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
