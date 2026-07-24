@@ -353,3 +353,127 @@ M2-B function-space analysis: planned
 Gate 2 seed 2/3 replication: planned
 M3 Fourier analysis: planned
 ```
+
+## 2026-07-24 — M1-C 50000-step extension 与稳定性测量
+
+**背景**
+
+20000-step canonical 行为时间线已出现反复离开和返回高性能区域，但原 M1 的首次事件
+无法回答长期稳定性。M1-C 保持原科学配置和 split，从 canonical checkpoint 延长到
+预注册的 50000-step 上限，并只增加不改变训练更新的 measurement sidecar 与优化诊断。
+
+**工程选择**
+
+- 新增严格的 `configs/analysis/m1c_stability.yaml`，其 resolved 副本与独立 hash 写入
+  child metadata，但不进入 scientific config hash。
+- `t_stable99` 使用 100 个 evaluation interval，即连续 101 条、首尾相差 5000 step 的
+  test accuracy 不低于 0.99 窗口。
+- Train/test collapse 保留为独立 primitive episode，joint episode 只是一对一引用二者的
+  composite；恢复 step 是连续 3 条恢复记录的起点，并另存确认 step。
+- Evaluation commit 顺序为 offset pair、optimization record、scalar commit marker，
+  随后从 committed scalar 幂等重建 events、stability 和 collapse artifacts。
+- Instrumented resume 始终建立 child。Branch source 只读验证；失败重试时只从最近安全
+  manifested checkpoint 创建新 child，不修改父 run。
+- Optimization diagnostic 在 backward 后、optimizer step 前捕获 FP64 CPU 参数和 gradient
+  快照，step 后计算实际 total update、解析的 AdamW decay update、残差 data update、
+  group norm、ratio/cosine 与 Adam moments。`grad=None` 参数不计 decay，未定义值使用
+  JSON `null`。
+- Checkpoint schema 维持 v2；measurement 与无状态派生指标不进入 checkpoint payload。
+
+实现与证据提交：
+
+```text
+32bba80 docs: avoid standalone equals in formulas
+8d620a8 feat: add m1c stability metrics and diagnostics
+64b20c1 fix: annotate m1c recovery events
+9ec0fc1 fix: preserve m1c export directory permissions
+458ff43 fix: make m1c export provenance portable
+784b352 results: add extended m1 ce reference evidence
+```
+
+**正式运行**
+
+- M1-B canonical parent：`20260721T045433955396Z_30c62ebc`，来源 checkpoint
+  `step_020000.pt`。
+- M1-C terminal child：`20260724T091041024473Z_c6434d8a`，completed，final step 50000。
+- 完整 lineage：
+  `20260721T045021566841Z_ef3ee07b → 20260721T045433955396Z_30c62ebc →
+  20260724T091041024473Z_c6434d8a`。
+- Scientific config hash：
+  `b167674594bf0944f0b2afb877d2d8c8f5647c0e4e60c64ebb2a511a9f1f7729`。
+- Split hash：`d0ec6ff924ecc411b9a9d40786f057ec869076b98308e2ecb75da2756c308237`。
+- Measurement config hash：
+  `182d1b705795f54acc683e751312b314bd8fd42f531f95d5c1491bb739a7b733`。
+- 相对 M1-B resolved config 的唯一差异是 `optimization.max_steps: 50000`。
+- 时间线包含 1000 条 scalar（step 50–50000）、2000 条 train/test offset、
+  600 条 optimization diagnostic（step 20050–50000）和 301 个 manifested checkpoint
+  （step 20000–50000）。
+- Peak allocated/reserved VRAM：230345216 / 373293056 bytes。
+- 正式训练一次完成，没有训练 retry。第一次导出审阅发现 recovery 标注不足，修复后从
+  同一只读 terminal run 重建导出；随后修复临时目录权限继承和 provenance 可移植性。
+  这些导出修复没有修改 run 或 checkpoint。
+
+**实际行为结果**
+
+M1-B 首次事件保持冻结：
+
+```text
+t_fit=100, detected_at=300
+t_grok50=6050, detected_at=6150
+t_grok99=7000, detected_at=7100
+```
+
+50000-step 时间线的稳定性派生结果：
+
+- `t_stable99`: `not_reached`；
+- train/test/joint episode 数分别为 26 / 10 / 10；joint 是 composite，不另计为独立
+  primitive episode；
+- 最后一个 collapse onset 为 step 49950；
+- test accuracy 不低于 0.99 的最长连续区间为 step 10150–12300，共 44 次 evaluation，
+  首尾相差 2150 step；
+- test evaluations 中 accuracy 不低于 0.99 的比例为 0.202；
+- terminal `final_state=recovering`，final train/test accuracy 为
+  1.0 / 0.963513970375061。
+
+参数端点的 total/decay/no-decay L2 从 step 20000 的
+37.0234510911 / 18.0065635094 / 32.3496460766 变为 step 50000 的
+45.2118762728 / 18.0784628163 / 41.4401126724。以上均为行为与尺度描述，不构成函数空间、
+优化原因或因果机制结论。
+
+**验证与审计**
+
+- 正式运行前实现验收：`76 passed`；文档收尾后的最终回归为 `77 passed`；
+  `ruff check` 与 `ruff format --check` 通过。
+- CUDA 专项：正式运行前为 `3 passed, 73 deselected`，最终回归为
+  `3 passed, 74 deselected`；真实 AdamW update、diagnostic finite、
+  optimizer state device、显存峰值和启用/禁用测量时的确定性参数结果均通过。
+- 普通与严格 doctor 均通过，识别 RTX 4060 Laptop GPU、8,585,216,000 bytes VRAM、
+  compute capability 8.9、PyTorch 2.2.0/CUDA runtime 12.1。
+- CPU smoke：`20260724T090955077383Z_274e145d`，completed。
+- `audit --profile m1c-extension` 的 21 项检查全部通过；包括 lifecycle、lineage、
+  canonical checkpoint SHA、唯一配置差异、hash、完整时间格点、final offline evaluator、
+  原 M1-B 23 个冻结文件以及不存在 M2+ artifact。
+- 扩展证据导出到 `results/m1_ce_reference_extended/`：5 组 CSV、原始 JSON/JSONL、
+  audit/provenance/README，以及 11 组 PNG/SVG；无平滑、插值、异常点删除或缺失 step 补齐。
+- 原 `results/m1_ce_reference/` 的 23 个文件逐字节不变。
+
+完整行为讨论见 [M1 CE-reference 行为讨论](M1-disc.md)。
+
+**影响与限制**
+
+到达 step 50000 是预注册上限停止，不是稳定窗口达成。M1-C audit 只在 final checkpoint
+执行完整离线 behavior evaluator；collapse onset、trough、recovery checkpoint 的逐窗口
+离线重算仍属于 M2-A。Seed 2/3 尚未运行，反复失稳能否跨 seed 复现仍未知。M1-C 没有生成
+Reynolds、Fourier、表征、电路、干预或 congruence 结果。
+
+```text
+M0 engineering foundation: completed
+M1-A behavior measurement: completed
+M1-B CE-reference 20000-step: completed
+M1-C CE-reference 50000-step extension: completed
+M1 overall: completed
+M2-A instability analysis: planned
+M2-B function-space analysis: planned
+Gate 2 seed 2/3 replication: planned
+M3 Fourier analysis: planned
+```

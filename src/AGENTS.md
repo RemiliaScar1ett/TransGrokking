@@ -44,21 +44,20 @@ M1 行为指标放在 `metrics/behavior.py`、`metrics/norms.py` 和 `metrics/ev
 
 M1-B 正式配置固定 `eval_interval=50`、`checkpoint_interval=100`。现有 20000-step CE-reference 及其首次事件保持冻结；延长训练不得改写 `t_fit`、`t_grok50` 或 `t_grok99`。
 
-## 5. M1-C 与 M2-A 计划职责
+## 5. M1-C 已实现职责与 M2-A 计划职责
 
-本节只记录后续实现计划。以下模块、指标和 artifacts 在完成代码与测试前均为 `planned`，不得表述为已经实现或验证。
-
-M1-C 只能在 stability metrics 与最小 optimization diagnostics 达到 `implemented`、`tested` 后启动。它从 20000-step canonical run 的最新 checkpoint 建立 child run，在 scientific config hash 和 split hash 不变的条件下把 `max_steps` 延长到 50000；时间线继续使用绝对 global step。
+M1-C stability metrics、最小 optimization diagnostics、instrumented child-run、审计与导出均已
+实现、测试并完成正式运行。正式 terminal child 为
+`20260724T091041024473Z_c6434d8a`；M2-A 的 checkpoint 重算和坍塌窗口真实性验证仍为
+`planned`。
 
 ### Stability metrics
-
-计划新增：
 
 ```text
 src/transgrokking/metrics/stability.py
 ```
 
-未来纯函数包括：
+稳定性纯函数包括：
 
 ```text
 detect_stable_window(...)
@@ -66,7 +65,7 @@ detect_collapse_episodes(...)
 summarize_stability(...)
 ```
 
-规划输出：
+输出：
 
 ```text
 t_stable99
@@ -77,11 +76,15 @@ fraction_of_time_above_99
 collapse episodes
 ```
 
-稳定窗口、坍塌 episode 和恢复状态均从已提交的行为时间线派生。原 `events.json` 及原 M1 结果 schema 保持不可变。
+稳定窗口固定为 100 个 evaluation interval，即 101 条连续记录和 5000 optimizer steps。
+Train/test primitive episode 独立保存，joint episode 仅作为对二者的一对一 composite 引用。
+稳定窗口、坍塌 episode 和恢复状态均从已提交的行为时间线幂等派生。原 `events.json`、
+原 M1 schema 和 `results/m1_ce_reference/` 保持不可变。
 
 ### Optimization diagnostics
 
-M1-C extension 计划记录：
+`training/diagnostics.py` 在目标 evaluation update 的 backward 后、optimizer step 前捕获
+FP64 CPU snapshot，并在 step 完成后记录：
 
 - gradient L2 norm；
 - data-update L2 norm；
@@ -89,27 +92,44 @@ M1-C extension 计划记录：
 - data/decay ratio；
 - update cosine；
 - Adam first-moment L2 norm；
-- Adam second-moment summary；
-- LayerNorm parameter L2 norm；
-- embedding parameter L2 norm。
+- Adam second-moment mean、RMS 和 max；
+- decay/no-decay group 的 gradient、update 和 moment 统计。
 
 参数和更新统一使用欧氏 L2；矩阵及高阶张量展平后的数值与 Frobenius norm 等价。Optimizer state 统计与模型参数范数分开保存。诊断过程不得修改 gradient、optimizer state 或训练更新。
 
-0–20000 step 的 canonical run 没有逐步 optimization diagnostics；这些数据只能从 M1-C child run 的 extension 起点开始提供，不得回填或推测。
+0–20000 step 的 canonical run 没有逐步 optimization diagnostics；正式 M1-C 只在
+20050–50000 step 每 50 step 保存一条，共 600 条，不得回填或推测。LayerNorm 与
+embedding parameter L2 继续由行为 scalar 的稳定模块范数提供，不伪装成 0–20000 step
+optimizer diagnostics。
 
-### Artifact 规划
+### M1-C artifacts 与提交顺序
 
-未来新增：
+Instrumented child run 使用：
 
 ```text
+measurement.resolved.yaml
 metrics/stability.json
 metrics/collapse_episodes.json
 metrics/optimization.jsonl
+audit/m1c_extension.json
 ```
 
-这些文件属于新增派生或延长运行证据，不能覆盖原 M1 schema、原 canonical run 或 `results/m1_ce_reference/`。
+每次 evaluation 按 error-offset pair、optimization record、scalar commit marker、
+events/stability/collapse 原子重建的顺序提交。Resume 只允许修复当前 interrupted inplace run；
+branch source 必须只读验证。Retry child 继承恢复 checkpoint 之前的已提交前缀和原始
+diagnostics origin。
 
-M2-A 负责失稳真实性验证、checkpoint 重算、坍塌窗口分析和最小优化诊断。M2-B 在 M2-A 之后开展函数空间与群对称性分析。Gate 2 只在 M2-A/M2-B 管线稳定后运行 CE、WD=0.5、seed 2/3 的行为层与失稳统计复现；完整多 seed 与 WD 网格仍属于 M4。
+这些文件属于新增派生或延长运行证据，不能覆盖原 M1 schema、原 canonical run 或
+`results/m1_ce_reference/`。`export-m1c` 只读已通过审计的 run，以临时目录原子发布并拒绝
+覆盖已有目标。
+
+### M2-A 计划边界
+
+M2-A 负责失稳真实性验证、代表 checkpoint 重算、坍塌窗口分析和失稳中心化分析。
+M1-C 已记录的 optimization diagnostics 可作为 M2-A 输入，但不等于 checkpoint 真实性或
+机制证据。M2-B 在 M2-A 之后开展函数空间与群对称性分析。Gate 2 只在 M2-A/M2-B 管线
+稳定后运行 CE、WD=0.5、seed 2/3 的行为层与失稳统计复现；完整多 seed 与 WD 网格仍
+属于 M4。
 
 ## 6. M2-B 计划职责
 

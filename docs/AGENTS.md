@@ -9,9 +9,11 @@
 - `intro.md`：理论符号、指标、假说和解释边界。
 - `experiment_protocol.md`：固定配置、阶段顺序、运行矩阵、停止规则和验收。
 - `implementation.md`：代码架构、schema、工程决定和实际验证。
+- `M1-disc.md`：M1-B/M1-C 的已冻结行为证据、稳定性观察、限制与 M2 handoff。
 - `README.md`：仓库入口、当前状态和可复制命令。
 
-新增文档需要明确职责，禁止复制大段已有内容。
+`M1-disc.md` 不得把行为或 optimizer 同步写成函数空间或因果机制。新增文档需要明确
+职责，禁止复制大段已有内容。
 
 ## 3. 阶段名称
 
@@ -76,7 +78,7 @@ collapse_onset        collapse-episode onset
 
 - CE-reference 配置；
 - evaluation interval 50 与 checkpoint interval 100；
-- M1-B 5000/20000-step 证据与 M1-C 50000-step child-run 延长规则；
+- M1-B 5000/20000-step 冻结证据与 M1-C 50000-step child-run 规则及实际完成状态；
 - `t_grok99` 后 20 个 evaluation interval 只作为首次事件后的继续训练证据；
 - `t_stable99`、稳定窗口与坍塌 episode 的长期稳定性口径；
 - Gate 2 seed 复制与 M4 完整多 seed/WD 网格的边界；
@@ -101,6 +103,23 @@ observed
 ```
 
 代码存在时使用 `implemented`，自动测试通过后使用 `tested`，正式实验完成后使用 `run`，结果文件支持具体陈述后使用 `observed`。
+
+当前事实基线为：
+
+```text
+M0 engineering foundation: completed
+M1-A behavior measurement: completed
+M1-B CE-reference 20000-step: completed
+M1-C CE-reference 50000-step extension: completed
+M1 overall: completed
+M2-A instability analysis: planned
+M2-B function-space analysis: planned
+```
+
+M1-C terminal child 为 `20260724T091041024473Z_c6434d8a`，行为稳定性结果为
+`t_stable99: not_reached`、`final_state: recovering`。这些结果已导出到
+`results/m1_ce_reference_extended/` 并通过 `m1c-extension` audit；不得据此提前标记
+M2-A 或 M2-B 已完成。
 
 ## 8. 决策记录
 
@@ -148,6 +167,10 @@ Git commit
 ```
 
 当前阶段未完成正式运行时，禁止标记整个阶段为 completed。
+
+M1-C 已完成记录必须区分 20000-step canonical parent 与 50000-step terminal child，保留
+首次事件不变，并明确 optimization diagnostics 只覆盖 extension 的 20050–50000 step。
+下一阶段门是 M2-A 的代表 collapse checkpoint 离线重算。
 
 ## 11. 完成条件
 

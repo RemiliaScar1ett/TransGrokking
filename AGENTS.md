@@ -111,29 +111,40 @@ TransGrokking/
 
 ## 7. 运行产物协议
 
-每个正式 run 至少保存：
+正式 run 的基础产物与 M1-C measurement 扩展的完整超集结构如下：
 
 ```text
 runs/<run_id>/
 ├── config.resolved.yaml
+├── measurement.resolved.yaml
 ├── metadata.json
 ├── split.pt
 ├── status.json
 ├── metrics/
 │   ├── scalars.jsonl
 │   ├── error_offsets.jsonl
-│   └── events.json
+│   ├── events.json
+│   ├── stability.json
+│   ├── collapse_episodes.json
+│   └── optimization.jsonl
 ├── checkpoints/
 │   ├── step_000000.pt
 │   └── manifest.json
+├── audit/
+│   └── m1c_extension.json
 ├── tensors/
 ├── figures/
 └── logs/
 ```
 
+`measurement.resolved.yaml`、稳定性、坍塌 episode 和 optimization diagnostics
+只在启用相应 measurement profile 的 run 中必需；普通 M0/M1-A/M1-B run 不得伪造这些文件。
 Checkpoint 至少包含模型、优化器、global step、配置、scientific config hash、split hash、parameter-group signature 和 Python/NumPy/Torch RNG 状态。文件写入采用临时文件加原子替换。
 
 Child run 记录父 run、父 checkpoint 和父 step。Scalar step 严格递增，manifest step 保持唯一，已有 checkpoint 禁止覆盖。
+Instrumented M1-C evaluation 按 error-offset pair、optimization record、scalar commit marker、
+events/stability/collapse 原子重建的顺序提交；branch source 只读验证，不得为创建 child
+而修复父目录。
 
 ## 8. 统一命令接口
 
@@ -143,8 +154,16 @@ Child run 记录父 run、父 checkpoint 和父 step。Scalar step 严格递增�
 conda run --prefix ./env python -m transgrokking.cli generate-data --config configs/baseline_ce.yaml
 conda run --prefix ./env python -m transgrokking.cli train --config configs/baseline_ce.yaml
 conda run --prefix ./env python -m transgrokking.cli evaluate --run-dir runs/<run_id>
-conda run --prefix ./env python -m transgrokking.cli analyze --run-dir runs/<run_id>
-conda run --prefix ./env python -m transgrokking.cli branch --run-dir runs/<run_id> --checkpoint <step> --config <branch.yaml>
+conda run --prefix ./env python -m transgrokking.cli train \
+  --config configs/ce_reference_extend_50000.yaml \
+  --measurement-config configs/analysis/m1c_stability.yaml \
+  --resume-from runs/<parent_run_id>/checkpoints/step_020000.pt \
+  --resume-mode auto
+conda run --prefix ./env python -m transgrokking.cli audit \
+  --run-dir runs/<run_id> --profile m1c-extension
+conda run --prefix ./env python -m transgrokking.cli export-m1c \
+  --run-dir runs/<run_id> \
+  --output-dir results/m1_ce_reference_extended
 ```
 
 CLI 发生变化时同步更新 README、协议文档和 subprocess 测试。
@@ -211,7 +230,7 @@ M1-B 的 20000-step canonical run 与 `results/m1_ce_reference/` 是已冻结证
 
 #### M1-C seed 1 延长至 50000 step
 
-M1-C 必须满足：
+M1-C protocol 已完成。执行时满足：
 
 - 原 `results/m1_ce_reference/` 和 20000-step canonical run 保持不可变；
 - 从 canonical run 的最新 checkpoint 创建 child run；
@@ -222,6 +241,22 @@ M1-C 必须满足：
 - 不改写 M1-B 的 `t_fit`、`t_grok50` 和 `t_grok99`。
 
 M1-C 只延长行为证据并增加预注册诊断，不得提前产生函数空间、Fourier 或机制性结论。
+
+已冻结的执行证据为：
+
+```text
+M1-B canonical parent: 20260721T045433955396Z_30c62ebc
+M1-C terminal child:   20260724T091041024473Z_c6434d8a
+final step:            50000
+t_stable99:            not_reached
+final_state:           recovering
+export:                results/m1_ce_reference_extended/
+audit:                 passed
+```
+
+首次事件仍为 `t_fit=100`、`t_grok50=6050`、`t_grok99=7000`。M1-C 的
+稳定性结论属于行为层 `observed` 证据；collapse checkpoint 离线重算和机制解释仍属于
+M2-A/M2-B 的 `planned` 工作。
 
 ### M2：失稳验证、函数空间与群对称性
 
@@ -234,7 +269,9 @@ M2-A 优先回答：
 - 坍塌前、谷底和恢复后的行为及参数尺度如何变化；
 - 坍塌是否与优化状态、parameter-group 范数或 logit 尺度同步。
 
-M2-A 至少包含 stable window、collapse episode、checkpoint 重算、最小 optimization diagnostics 和失稳中心化分析。行为同步只构成待验证关系；在函数证据或因果证据建立前不得写成机制结论。
+M2-A 复用 M1-C 已完成的 stable window、collapse episode 和最小 optimization
+diagnostics，并新增代表 checkpoint 重算、坍塌窗口真实性验证与失稳中心化分析。行为同步
+只构成待验证关系；在函数证据或因果证据建立前不得写成机制结论。
 
 #### M2-B 函数空间与群对称性
 
@@ -406,11 +443,17 @@ M0
 → M7
 ```
 
-允许在当前阶段内完成代码、测试和 smoke。正式科学分析需要前置阶段的 run artifacts 已通过验收。当前文档修订不得被标记为 stability、M1-C 或 M2 已实现；这些阶段仍须依次通过各自的实现、测试和运行门。
+允许在当前阶段内完成代码、测试和 smoke。正式科学分析需要前置阶段的 run artifacts
+已通过验收。M0、M1-A、M1-B 与 M1-C 已依序完成；下一阶段门是 M2-A 的 checkpoint
+真实性复核和坍塌窗口分析。M2-A、M2-B 及其后阶段在各自代码、测试和正式分析完成前
+继续标记为 `planned`。
 
 ## 11. 配置规则
 
 配置解析采用严格 schema。未知字段、非法类型、超范围值和 shape 不一致立即报错。科学配置与执行配置分离；恢复时校验 scientific config hash。
+
+M1-C measurement sidecar 使用独立严格 schema 和独立 hash，不进入 scientific config hash。
+恢复和 retry 必须保持 measurement hash 与 diagnostics origin 一致。
 
 基准配置的 `eval_interval=50`、`checkpoint_interval=100` 属于固定协议。任何调整都需要建立独立运行条件并记录理由。
 

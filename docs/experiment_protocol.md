@@ -29,11 +29,16 @@ loss、precision/TF32/AMP、seed、deterministic、device 和正式硬件约束�
 
 Execution config 可调整 `max_steps`、eval/checkpoint interval、activation steps、runs directory、
 analysis batch size 和 activation offload。新 `max_steps` 必须严格大于来源 checkpoint step。
+M1-C 的稳定性阈值、冻结来源和诊断频率由独立 measurement sidecar
+`configs/analysis/m1c_stability.yaml` 管理；其 resolved 副本与 hash 写入 run metadata，
+但不进入 scientific config hash。
 
 默认 `resume-mode=auto`：interrupted run 的最新 checkpoint 且 scalar 未超前时原地继续；
 completed run、历史 checkpoint、非最新 checkpoint或无法安全追加的情况创建 child run。Child
 使用绝对 global step，并记录 parent run、checkpoint 和 parent step。Manifest step 唯一，scalar
-step 严格递增，已有 checkpoint 禁止覆盖。
+step 严格递增，已有 checkpoint 禁止覆盖。使用 measurement sidecar 的 instrumented run
+始终创建 child，以免把不同代码 provenance 的诊断记录混入同一 run。Branch source 只读
+校验；只有 interrupted inplace run 才能修复自身未提交的指标尾部。
 
 ## 生命周期
 
@@ -69,10 +74,13 @@ attention、MLP、LayerNorm、final norm、unembedding；平方和重建总范�
 事件 step 是首次连续窗口起点，`detected_at_evaluation_step` 是确认窗口末端。同一 run
 已经达到的事件不可因恢复或 measurement 配置调整而改写。
 
-Metrics schema v1 包含 `scalars.jsonl`、`error_offsets.jsonl`、`events.json`。JSON 禁止
-NaN/Infinity；JSONL 采用原子替换。Offset 先写，scalar 作为 evaluation commit marker，
-events 随后原子重建；恢复会截断没有 scalar commit 的尾部 offset。Child run 复制父
-checkpoint 之前的 committed M1 前缀后继续绝对 step。
+基础 M1 metrics schema v1 包含 `scalars.jsonl`、`error_offsets.jsonl`、`events.json`。
+M1-C 在不改写基础 schema 的前提下增加 `optimization.jsonl`、`stability.json` 和
+`collapse_episodes.json`。JSON 禁止 NaN/Infinity；JSONL 采用原子替换。M1-C 的一次
+evaluation 按 offset pair、optimization record、scalar commit marker 的顺序写入，
+随后从完整 committed scalar 时间线原子重建 events、stability 和 collapse。恢复会截断
+没有 scalar commit 的 offset/optimization 尾部。Child run 复制来源 checkpoint 之前的
+committed 前缀后继续绝对 step；0–20000 不补写不存在的 optimization 记录。
 
 ## 当前阶段状态
 
@@ -80,7 +88,8 @@ checkpoint 之前的 committed M1 前缀后继续绝对 step。
 M0 engineering foundation: completed
 M1-A behavior measurement: completed
 M1-B CE-reference 20000-step: completed
-M1-C CE-reference 50000-step extension: planned
+M1-C CE-reference 50000-step extension: completed
+M1 overall: completed
 M2-A instability analysis: planned
 M2-B function-space analysis: planned
 Gate 2 seed 2/3 replication: planned
@@ -89,16 +98,22 @@ M3 Fourier analysis: planned
 
 Canonical CE-reference run：`20260721T045433955396Z_30c62ebc`。M1-B 的正式执行、失败重试、
 首次行为事件和审计结果见[实现与运行记录](implementation.md)。行为曲线显示反复进入和离开
-高性能区域；这些是行为层观察，checkpoint 真实性复核与机制解释仍为 planned。
+高性能区域；这些是行为层观察，坍塌窗口的逐 checkpoint 离线重算与机制解释仍为 planned。
+
+M1-C terminal child 为 `20260724T091041024473Z_c6434d8a`，完成至 step 50000 并通过
+`m1c-extension` 审计。首次事件仍冻结为 `t_fit=100`、`t_grok50=6050` 和
+`t_grok99=7000`。`t_stable99` 未达到，最长 test accuracy 不低于 0.99 的连续区间为
+44 次 evaluation（2150-step span），末端状态为 `recovering`。这些结果完成了 M1
+行为证据协议，但不等于形成稳定泛化或机制结论。
 
 ## 证据冻结
 
 [`results/m1_ce_reference/`](../results/m1_ce_reference/) 是 20000-step canonical run 的不可变
 M1 证据。后续工作不得覆盖、重写或重新导出替换该目录，也不得改写其中冻结的 `t_fit`、
-`t_grok50` 和 `t_grok99`。延长轨迹与失稳分析分别写入：
+`t_grok50` 和 `t_grok99`。[`results/m1_ce_reference_extended/`](../results/m1_ce_reference_extended/)
+是已审计的 50000-step 延长证据，同样不得覆盖或替换。后续 M2-A 结果写入：
 
 ```text
-results/m1_ce_reference_extended/
 results/m2a_stability/
 ```
 
@@ -106,13 +121,17 @@ results/m2a_stability/
 
 ## M1-C：50000-step extension
 
-M1-C 从 canonical run `20260721T045433955396Z_30c62ebc` 的最新 checkpoint 创建 child run，
-仅把 `max_steps` 调整为 50000。Scientific config hash 与 split hash 必须保持一致，行为时间线
-继续使用绝对 global step，父子 lineage 必须通过审计。
+M1-C 已从 canonical run `20260721T045433955396Z_30c62ebc` 的 `step_020000.pt` 创建 terminal
+child `20260724T091041024473Z_c6434d8a`，仅把 `max_steps` 调整为 50000。Scientific config
+hash `b167674594bf0944f0b2afb877d2d8c8f5647c0e4e60c64ebb2a511a9f1f7729` 与 split hash
+`d0ec6ff924ecc411b9a9d40786f057ec869076b98308e2ecb75da2756c308237` 保持不变，行为时间线
+继续使用绝对 global step。
 
-运行 M1-C 前，稳定性指标和最小优化诊断必须达到 `implemented` 与 `tested` 状态。逐步优化诊断
-从 extension 起点开始记录；0–20000 step 不得补写不存在的诊断。M1-C 用于判断坍塌是否继续
-出现、间隔是否变化以及长期稳定区间是否形成，不用于重算或改写 M1-B 的首次行为事件。
+Terminal child 包含 step 50–50000 的 1000 条 scalar、2000 条 train/test offset record、
+step 20050–50000 的 600 条 optimization record，以及 step 20000–50000 的 301 个 manifested
+checkpoint。逐步优化诊断仅从 extension 起点之后提供；0–20000 没有回填。首次行为事件未被
+改写。M1-C 用于测量坍塌是否继续出现、间隔是否变化以及长期稳定区间是否形成，不承担
+checkpoint 窗口真实性确认或机制解释。
 
 ## M2-A：失稳真实性与坍塌窗口
 
@@ -155,7 +174,12 @@ M2-A 与 M2-B 分析管线达到稳定状态后，Gate 2 执行 `WD=0.5` 的 CE 
 M1-C 保留 50000 optimizer step 的预注册上限。首次 `t_grok99` 后继续 20 个 evaluation
 interval 只验证首次事件后的后续训练，不再作为进入稳定阶段的充分条件。长期稳定性由
 $t_{\mathrm{stable99}}(100)$、longest stable window 和 last collapse step 共同描述；其中
-100 次 evaluation 对应当前协议下的 5000 optimizer steps。
+100 个 evaluation interval 需要连续 101 条记录，对应当前协议下首尾相差 5000 optimizer
+steps。
+
+本次正式 M1-C 到达预注册 step 50000 上限时，`t_stable99` 仍为 `not_reached`，last
+collapse onset 为 step 49950，final state 为 `recovering`。因此停止原因是达到协议上限，
+而不是达到稳定窗口。
 
 ## GPU 主链路与 M1-B 验收
 
@@ -166,3 +190,16 @@ CPU；该标量不参与参数张量设备绑定判断，也不通过 `capturabl
 
 最终 run 使用 `transgrokking.cli audit` 生成 `audit/m1_ce_reference.json`。只有生命周期、
 lineage、hash、时间轴、manifest、离线 evaluator 和预注册停止规则全部通过时，M1-B 才标记完成。
+
+M1-C 使用：
+
+```bash
+conda run --prefix ./env python -m transgrokking.cli audit \
+  --run-dir runs/20260724T091041024473Z_c6434d8a \
+  --profile m1c-extension
+```
+
+该审计原子写入 `audit/m1c_extension.json`，并核验 lineage、唯一配置差异、冻结 hash 与
+首次事件、精确 scalar/offset/optimization/checkpoint 时间格点、最终 checkpoint 离线
+evaluator、原 M1-B 23 个冻结文件以及不存在 M2+ artifact。全部检查已通过；具体运行数据
+见[实现与运行记录](implementation.md)，行为讨论见 [M1 CE-reference 行为讨论](M1-disc.md)。
