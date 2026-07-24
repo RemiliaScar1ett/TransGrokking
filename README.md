@@ -2,8 +2,9 @@
 
 TransGrokking 是面向模加法 Grokking 复现和机制分析的实验平台。理论定义见
 [`docs/intro.md`](docs/intro.md)，仓库可执行协议见
-[`docs/experiment_protocol.md`](docs/experiment_protocol.md)。M0 工程基础、M1 行为测量和
-正式 CE-reference seed 1 已完成；M2 函数空间与群对称性分析尚待实施。
+[`docs/experiment_protocol.md`](docs/experiment_protocol.md)。M0 工程基础、M1-A 行为测量和
+M1-B 20000-step CE-reference seed 1 已完成。该轨迹显示首次泛化后仍会反复失稳并恢复；
+M1-C 50000-step 延长、M2-A 失稳分析和 M2-B 函数空间分析均待实施。
 
 ## 环境
 
@@ -84,13 +85,17 @@ conda run --prefix ./env python -m transgrokking.cli audit \
 ```text
 M0 engineering foundation: completed
 M1-A behavior measurement: completed
-M1-B CE-reference seed 1: completed
-M2 function-space analysis: planned
+M1-B CE-reference 20000-step: completed
+M1-C CE-reference 50000-step extension: planned
+M2-A instability analysis: planned
+M2-B function-space analysis: planned
 ```
 
 M1 canonical run 为 `20260721T045433955396Z_30c62ebc`，最终 step 为 20000；行为事件为
 `t_fit=100`、`t_grok50=6050`、`t_grok99=7000`，M1 audit 已通过。这些时间点仅描述行为
-时间线；Reynolds 投影等函数空间解释安排在 M2，目前尚未产生机制结论。完整执行记录见
+时间线。原始导出证据位于 [`results/m1_ce_reference/`](results/m1_ce_reference/)，保持不可变。
+曲线还显示模型反复进入和离开高性能区域，但 checkpoint 真实性复核与机制解释尚未完成；
+相关工作分别安排在 M2-A 和 M2-B。完整执行记录见
 [`docs/implementation.md`](docs/implementation.md)。
 
 历史原型位于 [`legacy/`](legacy/README.md)，仅用于追溯，不是受支持入口。
