@@ -166,9 +166,11 @@ def test_export_is_complete_reproducible_and_refuses_overwrite(
     }
     output = export_m1c_results(source, tmp_path / "results")
     assert output.is_dir()
-    assert (
-        json.loads((output / "provenance.json").read_text(encoding="utf-8"))["smoothing"] is False
-    )
+    provenance = json.loads((output / "provenance.json").read_text(encoding="utf-8"))
+    assert provenance["smoothing"] is False
+    assert provenance["parent_checkpoint"] == "runs/parent/checkpoints/step_000050.pt"
+    assert provenance["source_files"]["scalars"] == "runs/child/metrics/scalars.jsonl"
+    assert provenance["csv_fields"]["optimization_curve.csv"][0] == "step"
     with (output / "margin_curve.csv").open(encoding="utf-8", newline="") as handle:
         rows = list(csv.DictReader(handle))
     assert len(rows) == 2

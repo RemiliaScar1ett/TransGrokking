@@ -394,38 +394,45 @@ def export_m1c_results(run_dir: str | Path, output_dir: str | Path) -> Path:
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source_path, target)
 
+        loss_columns = ["train_cross_entropy", "test_cross_entropy"]
+        accuracy_columns = ["train_accuracy", "test_accuracy"]
+        margin_columns = _columns(
+            scalars,
+            lambda key: key.startswith("train_margin_") or key.startswith("test_margin_"),
+        )
+        parameter_columns = _columns(
+            scalars,
+            lambda key: (
+                key.startswith("parameter_norm_") or key.startswith("parameter_group_norm_")
+            ),
+        )
+        optimization_columns = [
+            key for key in optimization[0] if key not in {"schema_version", "step"}
+        ]
         _write_csv(
             temporary / "loss_curve.csv",
             scalars,
-            ["train_cross_entropy", "test_cross_entropy"],
+            loss_columns,
         )
         _write_csv(
             temporary / "accuracy_curve.csv",
             scalars,
-            ["train_accuracy", "test_accuracy"],
+            accuracy_columns,
         )
         _write_csv(
             temporary / "margin_curve.csv",
             scalars,
-            _columns(
-                scalars,
-                lambda key: key.startswith("train_margin_") or key.startswith("test_margin_"),
-            ),
+            margin_columns,
         )
         _write_csv(
             temporary / "parameter_norm_curve.csv",
             scalars,
-            _columns(
-                scalars,
-                lambda key: (
-                    key.startswith("parameter_norm_") or key.startswith("parameter_group_norm_")
-                ),
-            ),
+            parameter_columns,
         )
         _write_csv(
             temporary / "optimization_curve.csv",
             optimization,
-            [key for key in optimization[0] if key not in {"schema_version", "step"}],
+            optimization_columns,
         )
         _plot_all(
             temporary,
@@ -437,12 +444,18 @@ def export_m1c_results(run_dir: str | Path, output_dir: str | Path) -> Path:
             episodes,
         )
         source_hashes = {relative: _sha256(path) for relative, path in sorted(copies.items())}
+        source_prefix = Path("runs") / source.name
         provenance = {
             "schema_version": 1,
             "canonical_parent_run_id": audit.get("canonical_parent_run_id"),
             "m1c_child_run_id": source.name,
             "source_git_commit": metadata.get("git_commit"),
-            "parent_checkpoint": metadata.get("extension_origin_checkpoint"),
+            "parent_checkpoint": (
+                Path("runs")
+                / str(audit.get("canonical_parent_run_id"))
+                / "checkpoints"
+                / f"step_{int(metadata['diagnostics_start_step']):06d}.pt"
+            ).as_posix(),
             "parent_step": metadata.get("diagnostics_start_step"),
             "final_step": int(scalars[-1]["step"]),
             "scientific_config_hash": metadata.get("scientific_config_hash"),
@@ -455,9 +468,32 @@ def export_m1c_results(run_dir: str | Path, output_dir: str | Path) -> Path:
             "scalar_count": len(scalars),
             "optimization_diagnostic_count": len(optimization),
             "source_file_sha256": source_hashes,
+            "source_files": {
+                "config_resolved": (source_prefix / "config.resolved.yaml").as_posix(),
+                "measurement_resolved": (source_prefix / "measurement.resolved.yaml").as_posix(),
+                "scalars": (source_prefix / "metrics/scalars.jsonl").as_posix(),
+                "error_offsets": (source_prefix / "metrics/error_offsets.jsonl").as_posix(),
+                "events": (source_prefix / "metrics/events.json").as_posix(),
+                "stability": (source_prefix / "metrics/stability.json").as_posix(),
+                "collapse_episodes": (source_prefix / "metrics/collapse_episodes.json").as_posix(),
+                "optimization": (source_prefix / "metrics/optimization.jsonl").as_posix(),
+                "audit": (source_prefix / "audit/m1c_extension.json").as_posix(),
+            },
+            "csv_fields": {
+                "loss_curve.csv": ["step", *loss_columns],
+                "accuracy_curve.csv": ["step", *accuracy_columns],
+                "margin_curve.csv": ["step", *margin_columns],
+                "parameter_norm_curve.csv": ["step", *parameter_columns],
+                "optimization_curve.csv": ["step", *optimization_columns],
+            },
+            "figure_files": [
+                f"figures/{name}.{suffix}" for name in FIGURE_NAMES for suffix in ("png", "svg")
+            ],
             "exported_at": datetime.now(timezone.utc).isoformat(),
             "smoothing": False,
             "interpolation": False,
+            "outlier_deletion": False,
+            "missing_step_imputation": False,
         }
         write_json(temporary / "provenance.json", provenance)
         readme = (
