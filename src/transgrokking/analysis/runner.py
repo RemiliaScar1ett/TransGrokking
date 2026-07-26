@@ -59,7 +59,12 @@ from transgrokking.training.artifacts import (
 )
 from transgrokking.training.optimizer import build_adamw
 from transgrokking.training.trainer import build_model
-from transgrokking.utils.atomic import torch_save, write_json, write_json_lines
+from transgrokking.utils.atomic import (
+    replace_with_retry,
+    torch_save,
+    write_json,
+    write_json_lines,
+)
 from transgrokking.utils.doctor import collect_doctor_report, validate_doctor_report
 from transgrokking.utils.reproducibility import configure_reproducibility
 
@@ -339,7 +344,7 @@ def _run_replay_bridges(
         cache_path = root / "cache" / f"replay_step_{target_step:06d}.pt"
         staged_cache = staging / f".{cache_path.name}.staged"
         torch_save(staged_cache, bridge.midpoint.checkpoint_payload)
-        os.replace(staged_cache, cache_path)
+        replace_with_retry(staged_cache, cache_path)
         records.append(_bridge_record(bridge, segment.run_id))
         write_json_lines(root / "m2a" / "replay_bridge.jsonl", records)
     return replay_payloads, records
@@ -578,7 +583,7 @@ def _atomic_npz(path: Path, **arrays: Any) -> None:
             np.savez_compressed(handle, **arrays)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, path)
+        replace_with_retry(temporary, path)
     finally:
         if temporary.exists():
             temporary.unlink()

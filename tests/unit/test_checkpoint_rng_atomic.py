@@ -83,6 +83,28 @@ def test_atomic_checkpoint_replace_failure_preserves_original(
     assert list(tmp_path.glob(".step_000001.pt.*")) == []
 
 
+def test_atomic_replace_retries_transient_permission_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    destination = tmp_path / "artifact.json"
+    real_replace = atomic.os.replace
+    attempts = 0
+
+    def transient_replace(source: str, target: str | Path) -> None:
+        nonlocal attempts
+        attempts += 1
+        if attempts < 3:
+            raise PermissionError("simulated Windows sharing violation")
+        real_replace(source, target)
+
+    monkeypatch.setattr(atomic.os, "replace", transient_replace)
+    monkeypatch.setattr(atomic.time, "sleep", lambda _: None)
+    atomic.write_json(destination, {"valid": True})
+
+    assert attempts == 3
+    assert destination.read_text(encoding="utf-8") == '{\n  "valid": true\n}\n'
+
+
 def test_manifest_never_references_incomplete_checkpoint(tmp_path: Path) -> None:
     for child in ("checkpoints", "metrics"):
         (tmp_path / child).mkdir()

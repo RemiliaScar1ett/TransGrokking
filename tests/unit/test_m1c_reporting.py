@@ -199,7 +199,7 @@ def test_export_publish_failure_leaves_no_target(
     def fail_replace(source_path, destination_path):
         raise OSError(f"simulated publish failure: {source_path} -> {destination_path}")
 
-    monkeypatch.setattr(m1c.os, "replace", fail_replace)
+    monkeypatch.setattr(m1c, "replace_with_retry", fail_replace)
     output = tmp_path / "failed-results"
     with pytest.raises(OSError, match="simulated"):
         export_m1c_results(source, output)

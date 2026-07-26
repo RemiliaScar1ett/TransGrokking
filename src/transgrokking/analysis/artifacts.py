@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from transgrokking.utils.atomic import write_json
+from transgrokking.utils.atomic import replace_with_retry, write_json
 
 
 def repository_root() -> Path:
@@ -190,7 +190,7 @@ def write_csv(path: str | Path, records: list[dict[str, Any]], columns: list[str
                 )
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary_name, destination)
+        replace_with_retry(temporary_name, destination)
     finally:
         if os.path.exists(temporary_name):
             os.unlink(temporary_name)

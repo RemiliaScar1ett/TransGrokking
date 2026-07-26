@@ -5,11 +5,32 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import time
 from pathlib import Path
 from typing import Any
 
 import torch
 import yaml
+
+
+def replace_with_retry(
+    source: str | Path,
+    destination: str | Path,
+    *,
+    attempts: int = 8,
+    initial_delay_seconds: float = 0.01,
+) -> None:
+    """Atomically replace a path, tolerating transient Windows sharing violations."""
+    if attempts < 1:
+        raise ValueError(f"attempts must be positive, got {attempts}")
+    for attempt in range(attempts):
+        try:
+            os.replace(source, destination)
+            return
+        except PermissionError:
+            if attempt + 1 == attempts:
+                raise
+            time.sleep(initial_delay_seconds * (2**attempt))
 
 
 def _replace_bytes(path: Path, payload: bytes) -> None:
@@ -20,7 +41,7 @@ def _replace_bytes(path: Path, payload: bytes) -> None:
             handle.write(payload)
             handle.flush()
             os.fsync(handle.fileno())
-        os.replace(temporary, path)
+        replace_with_retry(temporary, path)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)
@@ -54,7 +75,7 @@ def torch_save(path: str | Path, value: Any) -> None:
     os.close(descriptor)
     try:
         torch.save(value, temporary)
-        os.replace(temporary, destination)
+        replace_with_retry(temporary, destination)
     finally:
         if os.path.exists(temporary):
             os.unlink(temporary)

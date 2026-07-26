@@ -6,7 +6,6 @@ import csv
 import hashlib
 import json
 import math
-import os
 import re
 import shutil
 import uuid
@@ -17,7 +16,7 @@ from typing import Any
 
 import numpy as np
 
-from transgrokking.utils.atomic import write_json
+from transgrokking.utils.atomic import replace_with_retry, write_json
 
 FIGURE_NAMES = (
     "behavior_function_timeline",
@@ -1175,7 +1174,7 @@ def export_m2_results(analysis_dir: str | Path, output_dir: str | Path) -> Path:
         export_audit = audit_m2_export(temporary, write=True)
         if export_audit.get("passed") is not True:
             raise ValueError(f"portable M2 export audit failed: {export_audit['errors']}")
-        os.replace(temporary, destination)
+        replace_with_retry(temporary, destination)
     finally:
         if temporary.exists():
             shutil.rmtree(temporary)

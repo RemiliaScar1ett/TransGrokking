@@ -5,7 +5,6 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
-import os
 import shutil
 import uuid
 from datetime import datetime, timezone
@@ -17,7 +16,7 @@ from transgrokking.training.artifacts import (
     load_optimization_records,
     load_scalar_records,
 )
-from transgrokking.utils.atomic import write_json
+from transgrokking.utils.atomic import replace_with_retry, write_json
 
 FIGURE_NAMES = (
     "loss_linear",
@@ -510,7 +509,7 @@ def export_m1c_results(run_dir: str | Path, output_dir: str | Path) -> Path:
         )
         (temporary / "README.md").write_text(readme, encoding="utf-8")
         _ensure_expected_files(temporary)
-        os.replace(temporary, destination)
+        replace_with_retry(temporary, destination)
     finally:
         if temporary.exists():
             shutil.rmtree(temporary)

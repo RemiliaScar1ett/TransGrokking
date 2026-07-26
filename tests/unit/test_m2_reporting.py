@@ -281,7 +281,7 @@ def test_publish_failure_removes_temporary_directory(
     def fail_replace(source_path, destination_path):
         raise OSError(f"simulated publish failure: {source_path} -> {destination_path}")
 
-    monkeypatch.setattr(m2.os, "replace", fail_replace)
+    monkeypatch.setattr(m2, "replace_with_retry", fail_replace)
     destination = tmp_path / "failed-export"
     with pytest.raises(OSError, match="simulated publish failure"):
         export_m2_results(source, destination)
