@@ -101,6 +101,11 @@ REQUIRED_FUNCTION_FIELDS = (
     "full_logits_shape",
     "forward_dtype",
     "reduction_dtype",
+    "committed_ce_within_tolerance",
+    "committed_behavior_alignment_passed",
+    "committed_behavior_alignment_status",
+    "batched_predictions_match_committed",
+    "committed_reference_recheck_passed",
 )
 
 _FORBIDDEN_ARTIFACT_NAME = re.compile(

@@ -61,6 +61,13 @@ def _function_record(step: int, *, regular: bool = True) -> dict[str, object]:
         "full_logits_shape": [3, 3, 3],
         "forward_dtype": "float32",
         "reduction_dtype": "float64",
+        "committed_ce_within_tolerance": True,
+        "committed_behavior_alignment_passed": True,
+        "committed_behavior_alignment_status": (
+            "uncommitted_initialization" if step == 0 else "prediction_exact"
+        ),
+        "batched_predictions_match_committed": None if step == 0 else True,
+        "committed_reference_recheck_passed": None,
     }
 
 

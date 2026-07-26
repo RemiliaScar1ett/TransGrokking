@@ -643,30 +643,52 @@ def _function_behavior_alignment(
     metrics: dict[str, Any],
     scalar_by_step: dict[int, dict[str, Any]],
     config: M2AnalysisConfig,
-) -> tuple[bool, float | None]:
+) -> dict[str, Any]:
     if step == 0:
-        return True, None
+        return {
+            "committed_ce_within_tolerance": True,
+            "committed_ce_max_abs_diff": None,
+            "batched_predictions_match_committed": None,
+            "committed_train_accuracy_abs_diff": None,
+            "committed_test_accuracy_abs_diff": None,
+            "committed_train_error_count_diff": None,
+            "committed_test_error_count_diff": None,
+        }
     committed = scalar_by_step[step]
-    if any(
-        metrics[f"{split}_error_count"] != committed[f"{split}_error_count"]
-        for split in ("train", "test")
-    ):
-        return False, None
     ce_differences = [
         abs(float(metrics[f"{split}_cross_entropy"]) - float(committed[f"{split}_cross_entropy"]))
         for split in ("train", "test")
     ]
-    passed = all(
+    ce_within_tolerance = all(
         math.isclose(
-            float(metrics[f"{split}_{field}"]),
-            float(committed[f"{split}_{field}"]),
+            float(metrics[f"{split}_cross_entropy"]),
+            float(committed[f"{split}_cross_entropy"]),
             abs_tol=config.behavior_validation_atol,
             rel_tol=config.behavior_validation_rtol,
         )
         for split in ("train", "test")
-        for field in ("cross_entropy", "accuracy")
     )
-    return passed, max(ce_differences)
+    error_count_differences = {
+        split: int(metrics[f"{split}_error_count"]) - int(committed[f"{split}_error_count"])
+        for split in ("train", "test")
+    }
+    return {
+        "committed_ce_within_tolerance": ce_within_tolerance,
+        "committed_ce_max_abs_diff": max(ce_differences),
+        "batched_predictions_match_committed": all(
+            difference == 0 for difference in error_count_differences.values()
+        ),
+        **{
+            f"committed_{split}_accuracy_abs_diff": abs(
+                float(metrics[f"{split}_accuracy"]) - float(committed[f"{split}_accuracy"])
+            )
+            for split in ("train", "test")
+        },
+        **{
+            f"committed_{split}_error_count_diff": difference
+            for split, difference in error_count_differences.items()
+        },
+    }
 
 
 def _write_function_metrics(root: Path, records: list[dict[str, Any]]) -> None:
@@ -733,6 +755,7 @@ def _run_m2b(
         int(row["step"]): row
         for row in load_scalar_records(terminal_run / "metrics" / "scalars.jsonl")
     }
+    offsets_by_step = _committed_offsets(terminal_run)
     device = torch.device(config.device)
     model = build_model(experiment).to(device=device, dtype=torch.float32)
     _, grouping = build_adamw(model, experiment.optimization)
@@ -770,13 +793,42 @@ def _run_m2b(
             "reduction_dtype": str(result.centered_logits.dtype).removeprefix("torch."),
             **norms,
         }
-        alignment_passed, alignment_max_diff = _function_behavior_alignment(
-            step, metrics, scalar_by_step, config
+        alignment = _function_behavior_alignment(step, metrics, scalar_by_step, config)
+        reference_recheck_passed: bool | None = None
+        if step == 0:
+            alignment_status = "uncommitted_initialization"
+        elif not alignment["committed_ce_within_tolerance"]:
+            raise ValueError(
+                f"M2-B batched CE exceeds committed tolerance at step {step}: {alignment}"
+            )
+        elif alignment["batched_predictions_match_committed"]:
+            alignment_status = "prediction_exact"
+        else:
+            reference_metrics, reference_offsets = behavior_snapshot(
+                model, data, grouping, device, full_logits=raw_logits
+            )
+            reference_recheck_passed, _ = _behavior_validation_passed(
+                scalar_by_step[step],
+                reference_metrics,
+                offsets_by_step[step],
+                reference_offsets,
+                config,
+            )
+            if not reference_recheck_passed:
+                raise ValueError(
+                    "M2-B batch-sensitive prediction mismatch does not reproduce the committed "
+                    f"reference evaluator at step {step}"
+                )
+            alignment_status = "batch_sensitive_predictions"
+        metrics.update(alignment)
+        metrics["committed_reference_recheck_passed"] = reference_recheck_passed
+        metrics["committed_behavior_alignment_status"] = alignment_status
+        metrics["committed_behavior_alignment_passed"] = alignment[
+            "committed_ce_within_tolerance"
+        ] and (
+            alignment["batched_predictions_match_committed"] is not False
+            or reference_recheck_passed is True
         )
-        metrics["committed_behavior_alignment_passed"] = alignment_passed
-        metrics["committed_ce_max_abs_diff"] = alignment_max_diff
-        if not alignment_passed:
-            raise ValueError(f"M2-B batched logits disagree with committed behavior at step {step}")
         if not finite_tree(metrics):
             raise ValueError(f"M2-B metric contains non-finite values at step {step}")
         records.append(metrics)

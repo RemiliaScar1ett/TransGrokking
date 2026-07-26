@@ -510,7 +510,7 @@ def detect_function_events(
     dominant = [float(record["Gamma"]) > float(record["I"]) for record in regular]
     gamma_summary = _condition_summary(regular, gamma_positive)
     dominant_summary = _condition_summary(regular, dominant)
-    return {
+    output = {
         "schema_version": FUNCTION_EVENTS_SCHEMA_VERSION,
         "summary_grid": "regular_manifest_checkpoint_grid",
         "regular_step_count": len(regular),
@@ -533,3 +533,29 @@ def detect_function_events(
         "fraction_dominant": dominant_summary["fraction_true"],
         "last_dominance_exit_step": dominant_summary["last_exit_step"],
     }
+    alignment_statuses = [record.get("committed_behavior_alignment_status") for record in records]
+    if any(status is not None for status in alignment_statuses):
+        allowed = {
+            "uncommitted_initialization",
+            "prediction_exact",
+            "batch_sensitive_predictions",
+        }
+        if any(status not in allowed for status in alignment_statuses):
+            raise ValueError(f"invalid committed behavior alignment status: {alignment_statuses}")
+        output["behavior_alignment"] = {
+            "state_count": len(records),
+            "prediction_exact_state_count": alignment_statuses.count("prediction_exact"),
+            "batch_sensitive_prediction_state_count": alignment_statuses.count(
+                "batch_sensitive_predictions"
+            ),
+            "uncommitted_initialization_state_count": alignment_statuses.count(
+                "uncommitted_initialization"
+            ),
+            "regular_batch_sensitive_prediction_state_count": sum(
+                record.get("is_regular_grid") is True
+                and record.get("committed_behavior_alignment_status")
+                == "batch_sensitive_predictions"
+                for record in records
+            ),
+        }
+    return output

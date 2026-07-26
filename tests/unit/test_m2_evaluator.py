@@ -121,9 +121,38 @@ def test_function_alignment_uses_error_counts_for_exact_predictions() -> None:
         "test_error_count": 3,
     }
 
-    passed, maximum_ce_difference = _function_behavior_alignment(
-        100, metrics, {100: committed}, config
-    )
+    alignment = _function_behavior_alignment(100, metrics, {100: committed}, config)
 
-    assert passed is True
-    assert maximum_ce_difference is not None and maximum_ce_difference <= 1.0e-6
+    assert alignment["committed_ce_within_tolerance"] is True
+    assert alignment["batched_predictions_match_committed"] is True
+    assert alignment["committed_ce_max_abs_diff"] <= 1.0e-6
+
+
+def test_function_alignment_exposes_batch_sensitive_prediction_count() -> None:
+    config = type(
+        "ToleranceConfig",
+        (),
+        {"behavior_validation_atol": 1.0e-6, "behavior_validation_rtol": 1.0e-6},
+    )()
+    metrics = {
+        "train_cross_entropy": 0.1,
+        "test_cross_entropy": 0.2,
+        "train_accuracy": 1.0,
+        "test_accuracy": 0.5,
+        "train_error_count": 0,
+        "test_error_count": 5,
+    }
+    committed = {
+        "train_cross_entropy": 0.1,
+        "test_cross_entropy": 0.2,
+        "train_accuracy": 1.0,
+        "test_accuracy": 0.4,
+        "train_error_count": 0,
+        "test_error_count": 6,
+    }
+
+    alignment = _function_behavior_alignment(100, metrics, {100: committed}, config)
+
+    assert alignment["committed_ce_within_tolerance"] is True
+    assert alignment["batched_predictions_match_committed"] is False
+    assert alignment["committed_test_error_count_diff"] == -1

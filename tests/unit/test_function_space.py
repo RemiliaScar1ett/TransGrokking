@@ -249,6 +249,23 @@ def test_function_events_step_zero_true_is_run_but_not_crossing() -> None:
     assert events["gamma_true_to_false_exit_count"] == 1
 
 
+def test_function_events_summarize_batch_sensitive_prediction_states() -> None:
+    records = [_record(0, -1.0, 0.0), _record(50, 1.0, 0.0, False), _record(100, 1.0, 0.0)]
+    records[0]["committed_behavior_alignment_status"] = "uncommitted_initialization"
+    records[1]["committed_behavior_alignment_status"] = "batch_sensitive_predictions"
+    records[2]["committed_behavior_alignment_status"] = "prediction_exact"
+
+    events = detect_function_events(records)
+
+    assert events["behavior_alignment"] == {
+        "state_count": 3,
+        "prediction_exact_state_count": 1,
+        "batch_sensitive_prediction_state_count": 1,
+        "uncommitted_initialization_state_count": 1,
+        "regular_batch_sensitive_prediction_state_count": 0,
+    }
+
+
 @pytest.mark.parametrize(
     ("records", "message"),
     [

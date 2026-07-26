@@ -100,6 +100,11 @@ _REQUIRED_FUNCTION_FIELDS = {
     "full_logits_shape",
     "forward_dtype",
     "reduction_dtype",
+    "committed_ce_within_tolerance",
+    "committed_behavior_alignment_passed",
+    "committed_behavior_alignment_status",
+    "batched_predictions_match_committed",
+    "committed_reference_recheck_passed",
 }
 
 
@@ -1011,19 +1016,61 @@ def audit_m2_analysis(analysis_dir: str | Path) -> dict[str, Any]:
             )
         committed_diff = row.get("committed_ce_max_abs_diff")
         if row.get("step") == 0:
-            if committed_diff is not None:
-                failures.append({"step": row.get("step"), "field": "committed_ce_max_abs_diff"})
-        elif (
-            type(committed_diff) not in {int, float}
-            or not 0.0 <= float(committed_diff) <= config.behavior_validation_atol
-        ):
-            failures.append(
-                {
-                    "step": row.get("step"),
-                    "field": "committed_ce_max_abs_diff",
-                    "value": committed_diff,
-                }
-            )
+            if (
+                committed_diff is not None
+                or row.get("committed_behavior_alignment_status") != "uncommitted_initialization"
+                or row.get("batched_predictions_match_committed") is not None
+                or row.get("committed_reference_recheck_passed") is not None
+                or row.get("committed_ce_within_tolerance") is not True
+            ):
+                failures.append({"step": row.get("step"), "field": "initialization_alignment"})
+        else:
+            count_differences = [
+                row.get("committed_train_error_count_diff"),
+                row.get("committed_test_error_count_diff"),
+            ]
+            accuracy_differences = [
+                row.get("committed_train_accuracy_abs_diff"),
+                row.get("committed_test_accuracy_abs_diff"),
+            ]
+            if (
+                type(committed_diff) not in {int, float}
+                or not 0.0 <= float(committed_diff) <= config.behavior_validation_atol
+                or row.get("committed_ce_within_tolerance") is not True
+                or any(type(value) is not int for value in count_differences)
+                or any(
+                    type(value) not in {int, float} or not math.isfinite(float(value))
+                    for value in accuracy_differences
+                )
+            ):
+                failures.append(
+                    {
+                        "step": row.get("step"),
+                        "field": "committed_numeric_alignment",
+                        "value": committed_diff,
+                    }
+                )
+            predictions_match = row.get("batched_predictions_match_committed")
+            if predictions_match is True:
+                if (
+                    row.get("committed_behavior_alignment_status") != "prediction_exact"
+                    or row.get("committed_reference_recheck_passed") is not None
+                    or any(value != 0 for value in count_differences)
+                ):
+                    failures.append(
+                        {"step": row.get("step"), "field": "prediction_exact_alignment"}
+                    )
+            elif predictions_match is False:
+                if (
+                    row.get("committed_behavior_alignment_status") != "batch_sensitive_predictions"
+                    or row.get("committed_reference_recheck_passed") is not True
+                    or not any(value != 0 for value in count_differences)
+                ):
+                    failures.append({"step": row.get("step"), "field": "batch_sensitive_alignment"})
+            else:
+                failures.append(
+                    {"step": row.get("step"), "field": "batched_predictions_match_committed"}
+                )
     checks.append(
         _check("function_space_invariants", not failures and bool(metrics), failures[:20])
     )
