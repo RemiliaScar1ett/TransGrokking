@@ -5,6 +5,7 @@ from __future__ import annotations
 import csv
 import json
 import math
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -115,6 +116,12 @@ def _read_json(path: Path) -> dict[str, Any]:
     if not finite_tree(value):
         raise ValueError(f"{path}: JSON contains non-finite or unsupported values")
     return value
+
+
+def _git_commit() -> str:
+    return subprocess.check_output(
+        ["git", "rev-parse", "HEAD"], cwd=repository_root(), text=True
+    ).strip()
 
 
 def _read_jsonl(path: Path) -> list[dict[str, Any]]:
@@ -261,6 +268,35 @@ def _expected_implication_status(value: float, tolerance: float) -> str:
     if value < -tolerance:
         return "not_applicable"
     return "numerically_ambiguous"
+
+
+def _committed_ce_alignment_valid(
+    row: dict[str, Any], committed: dict[str, Any] | None, config
+) -> bool:
+    if committed is None or row.get("committed_ce_within_tolerance") is not True:
+        return False
+    try:
+        differences = [
+            abs(float(row[f"{split}_cross_entropy"]) - float(committed[f"{split}_cross_entropy"]))
+            for split in ("train", "test")
+        ]
+        recorded = float(row["committed_ce_max_abs_diff"])
+    except (KeyError, TypeError, ValueError):
+        return False
+    return all(
+        math.isclose(
+            float(row[f"{split}_cross_entropy"]),
+            float(committed[f"{split}_cross_entropy"]),
+            abs_tol=config.behavior_validation_atol,
+            rel_tol=config.behavior_validation_rtol,
+        )
+        for split in ("train", "test")
+    ) and math.isclose(
+        recorded,
+        max(differences),
+        abs_tol=1.0e-15,
+        rel_tol=1.0e-12,
+    )
 
 
 def _bridge_structure_is_valid(
@@ -848,6 +884,12 @@ def audit_m2_analysis(analysis_dir: str | Path) -> dict[str, Any]:
     )
 
     metrics, metric_error = _safe(lambda: _read_jsonl(root / "m2b" / "function_metrics.jsonl"), [])
+    committed_scalars, committed_scalar_error = _safe(
+        lambda: _read_jsonl(root / "context" / "m1_scalars.jsonl"), []
+    )
+    committed_scalar_by_step = {
+        int(row["step"]): row for row in committed_scalars if type(row.get("step")) is int
+    }
     metric_csv_equal, metric_csv_error = _safe(
         lambda: _jsonl_csv_equal(metrics, root / "m2b" / "function_metrics.csv"), False
     )
@@ -1025,6 +1067,11 @@ def audit_m2_analysis(analysis_dir: str | Path) -> dict[str, Any]:
             ):
                 failures.append({"step": row.get("step"), "field": "initialization_alignment"})
         else:
+            committed_scalar = (
+                committed_scalar_by_step.get(int(row["step"]))
+                if type(row.get("step")) is int
+                else None
+            )
             count_differences = [
                 row.get("committed_train_error_count_diff"),
                 row.get("committed_test_error_count_diff"),
@@ -1035,8 +1082,8 @@ def audit_m2_analysis(analysis_dir: str | Path) -> dict[str, Any]:
             ]
             if (
                 type(committed_diff) not in {int, float}
-                or not 0.0 <= float(committed_diff) <= config.behavior_validation_atol
-                or row.get("committed_ce_within_tolerance") is not True
+                or committed_scalar_error is not None
+                or not _committed_ce_alignment_valid(row, committed_scalar, config)
                 or any(type(value) is not int for value in count_differences)
                 or any(
                     type(value) not in {int, float} or not math.isfinite(float(value))
@@ -1254,6 +1301,7 @@ def audit_m2_analysis(analysis_dir: str | Path) -> dict[str, Any]:
         "schema_version": M2_ANALYSIS_AUDIT_SCHEMA_VERSION,
         "analysis_id": root.name,
         "analysis_config_hash": config.analysis_hash(),
+        "audit_git_commit": _git_commit(),
         "passed": passed,
         "checks": checks,
         "audited_source_sha256": audited_hashes,

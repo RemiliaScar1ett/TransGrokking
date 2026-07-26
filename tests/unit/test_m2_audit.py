@@ -11,6 +11,7 @@ from transgrokking.analysis.artifacts import write_csv
 from transgrokking.analysis.config import load_m2_analysis_config
 from transgrokking.metrics.audit_m2 import (
     _bridge_structure_is_valid,
+    _committed_ce_alignment_valid,
     _expected_implication_status,
     _inventory_sources,
     _lineage_table_errors,
@@ -62,6 +63,21 @@ def test_implication_status_uses_explicit_numeric_buffer() -> None:
     assert _expected_implication_status(-2.0e-10, tolerance) == "not_applicable"
     assert _expected_implication_status(tolerance, tolerance) == "numerically_ambiguous"
     assert _expected_implication_status(-tolerance, tolerance) == "numerically_ambiguous"
+
+
+def test_committed_ce_alignment_uses_configured_atol_and_rtol() -> None:
+    config = load_m2_analysis_config("configs/analysis/m2_function_space.yaml")
+    committed = {"train_cross_entropy": 4.5, "test_cross_entropy": 3.0}
+    row = {
+        "train_cross_entropy": 4.500003,
+        "test_cross_entropy": 3.000002,
+        "committed_ce_max_abs_diff": 3.0e-6,
+        "committed_ce_within_tolerance": True,
+    }
+
+    assert _committed_ce_alignment_valid(row, committed, config)
+    row["committed_ce_max_abs_diff"] = 2.0e-6
+    assert not _committed_ce_alignment_valid(row, committed, config)
 
 
 def test_source_inventory_rejects_provenance_run_id_substitution() -> None:
