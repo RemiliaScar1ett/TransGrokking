@@ -477,3 +477,135 @@ M2-B function-space analysis: planned
 Gate 2 seed 2/3 replication: planned
 M3 Fourier analysis: planned
 ```
+
+## 2026-07-27 — M2 失稳真实性验证与函数空间分析
+
+**背景**
+
+M1-C 的 50000-step seed 1 时间线记录了 26 个 train primitive、10 个 test primitive 和
+10 个 joint composite episode，且 `t_stable99` 未达到。M2 需要先证明这些坍塌不是在线
+日志或 lineage 异常，再在完整函数空间内测量 Reynolds 等变结构、算法 margin、残差干扰、
+函数尺度与 entropy。M1 runs、两个冻结 results 目录和固定 PDF 在整个分析中保持只读。
+
+**工程选择**
+
+- 新增严格 `configs/analysis/m2_function_space.yaml`；analysis hash 独立于 training
+  scientific hash。
+- Read-only resolver 现场遍历三个 manifest，输出 physical files、canonical index 和 alias
+  tables。Semantic hash 规范化 model、optimizer、RNG、global step、group signature 和训练
+  hash，不包含路径、run ID 或 execution/measurement/analysis config。
+- Replay segment 固定为 root 0–5000、M1-B 5000–20000、M1-C 20000–50000。每个 50-step
+  目标独立 replay 两次，并继续到后继 100-step checkpoint 做 semantic bridge；所有 source
+  SHA 在前后复核。
+- M2-A reference evaluator 在 `model.eval()` 与 `torch.inference_mode()` 下重算行为、错误
+  offset 和参数范数。未恢复 episode 使用 `terminal_unrecovered`，不伪造 recovery 字段。
+- M2-B 以 CUDA FP32/batch 1024 生成完整 $[97,97,97]$ logits，立即 offload，并在 CPU
+  FP64 上完成类别中心化、Reynolds 投影、能量、margin、entropy 和 quantile 归约。
+- 数学误差使用尺度归一化 reconstruction、orthogonality、energy identity 与 invariance
+  指标；充分条件使用显式 $10^{-10}$ margin buffer。
+- Analysis lifecycle 写入 `analysis_runs/<analysis_id>/`。Analysis audit 通过后才允许原子
+  export；portable export audit 再检查相对 POSIX provenance、文件 SHA、schema、M1 frozen
+  SHA 与 M3+ 禁止项。
+- 17 个 selected tensor 共 252.61 MiB，超过 100 MiB export 门限；完整 tensor 留在本地
+  ignored analysis run，Git results 只保存 manifest、offset profiles 与聚合指标。
+
+实现提交：
+
+```text
+74faa9e feat: add m2 checkpoint validation and function metrics
+eec2d17 fix: retry transient atomic replacements
+e119ff4 fix: record batch-sensitive function predictions
+02087b7 fix: align m2 audit behavior tolerance
+4ef234d results: add m2 function-space evidence
+```
+
+**正式分析与重试**
+
+- 第一次 analysis `20260726T183540637337Z_5337a9bb` 在 M2-B 写入时遇到 Windows
+  `PermissionError`；失败目录保留，随后给原子替换增加有界 retry。
+- 第二次 analysis `20260726T184246788043Z_5337a9bb` 在 step 33100 发现 batch-1024
+  argmax 与原 full-batch evaluator 相差一个近边界样本；失败目录保留。实现改为保留 batched
+  函数值并显式标记 prediction sensitivity，同时用原 evaluator 做严格 reference recheck。
+- Terminal analysis 为 `20260726T185412278703Z_5337a9bb`，M2-A、M2-B 与 analysis
+  lifecycle 均 completed。第一次 audit 暴露 audit 误用了纯绝对 CE 容差；失败 audit 留在
+  `logs/`，修正为配置的 `atol+rtol` 判据后通过。没有通过重启选择更平滑的训练轨迹。
+
+**Checkpoint 与 M2-A 结果**
+
+- Manifest 现场计数为 51 / 151 / 301，共 503 个物理 checkpoint 和 501 个唯一 regular
+  step。Step 5000、20000 的 raw checkpoint SHA 不同，semantic state 分别一致。
+- 95 个 validation target 中 47 个 exact、48 个 replay、0 个 unresolved；181 条 episode/
+  protocol role record。
+- 48/48 bridge 通过，两次 midpoint/endpoint replay digest 一致，endpoint semantic mismatch
+  为 0，source/endpoint SHA change 为 0。
+- 94 个带 committed scalar 的状态，其 CE、accuracy、margin 和参数范数 reference 重算最大
+  差异均为 0；95/95 error-offset 一致。
+- `test_008` 的跨 step-20000 lineage 恢复得到确认；`test_010` 与 `train_026` 在 step
+  50000 保持 `terminal_unrecovered`。
+
+**M2-B 结果**
+
+- 函数时间线包含 501 个 regular state 和 48 个 replay state，共 549 条；全部数学不变量
+  和 projected split 不变量通过。
+- $t_{\mathrm{alg}}$ 的 regular-grid 估计为 step 100，分辨区间为 $(0,100]$；
+  $t_{\mathrm{dom}}$ 到 step 50000 未达到。
+- Gamma-positive regular runs 为 5 段，占比 0.99001996；有 5 次 false-to-true crossing、
+  4 次 exit，最后 exit 为 step 40800。
+- 10 个 test onset 相对 pre-collapse 的中位变化为 $\Delta\Gamma=-7.3526$、
+  $\Delta I=-63.3652$、$\Delta D_{\mathrm{eq}}=+0.4578$、normalized entropy
+  $+0.8019$、centered RMS $-34.6176$。Gamma 与 $I$ 同时减小，不能描述成 residual
+  interference 增强导致坍塌。
+- $\Gamma-I$ 在 regular grid 上始终为负；step 11000 raw full accuracy 已为 1，但 gap
+  为 -61.8810，说明该最坏样本界是未满足的充分条件，而非高准确率必要条件。
+- M1-C optimization diagnostics 范围内，15 个 train onset 同步出现 data update 与 Adam
+  first moment 增大。这是描述性 association；没有 optimizer、WD 或模块干预，不能写成
+  因果机制。
+
+M2-A/M2-B 的完整数值、H1–H4 评价和边界见
+[M2 失稳验证与函数空间分析](M2-disc.md)。
+
+**审计与导出**
+
+- Analysis audit：25 项检查全部通过。
+- Portable export audit：9 项检查全部通过，43 个导出文件共 22.964 MiB；除 audit 自身外
+  的 42 个文件均有 SHA-256。
+- `status.json` 中的 `export_status=ready` 是 analysis audit 后的只读 source 快照；exporter
+  不回写 analysis run。实际 portable export 完成凭据是 `audit/m2_export.json` 的
+  `passed=true`。
+- Results：`results/m2_function_space/`，含 checkpoint tables、M2-A JSONL/CSV、549 条
+  function JSONL/CSV、offset profiles、function events、10 组 PNG/SVG、tensor manifest、
+  provenance 和两阶段 audit。
+- Source GPU peak allocated/reserved 为 231,535,104 / 329,252,864 bytes。
+- `results/m1_ce_reference/` 的 23 个文件和 `results/m1_ce_reference_extended/` 的
+  38 个文件均按 path/size/SHA 现场复核不变。
+- 没有生成 Fourier、frequency-line、seed 2/3、WD grid、representation、circuit、
+  intervention 或 congruence artifact。
+
+**验证**
+
+正式 analysis 前完整 pytest 为 132 passed。文档收尾后的最终回归为 133 passed；CUDA
+marker 为 4 passed、129 deselected；Ruff lint/format 均通过。普通与严格 doctor 均识别
+RTX 4060 Laptop GPU、8,585,216,000 bytes VRAM、compute capability 8.9、PyTorch 2.2.0/
+CUDA runtime 12.1。CPU/CUDA M2 smoke 和 replay 测试均通过。
+
+**影响与限制**
+
+M2 确认失稳是真实模型状态，并建立函数尺度、等变比例、entropy 与优化诊断的时间对齐。
+这些证据仍来自单 seed；$I$ 是保守的全表最坏样本界；selected logits 仅在本地保存；没有
+Fourier、跨 seed 或因果干预证据。
+
+```text
+M0 engineering foundation: completed
+M1-A behavior measurement: completed
+M1-B CE-reference 20000-step: completed
+M1-C CE-reference 50000-step extension: completed
+M1 overall: completed
+M2-A instability analysis: completed
+M2-B function-space analysis: completed
+M2 overall: completed
+Gate 2 seed 2/3 replication: planned
+M3 Fourier analysis: planned
+```
+
+下一阶段门是 Gate 2：运行 CE、WD=0.5、seed 2/3 的行为层与失稳复现，并复用已审计的
+checkpoint/function pipeline。Gate 2 不包含完整 WD grid 或 Fourier。

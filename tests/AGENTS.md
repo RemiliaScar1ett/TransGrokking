@@ -66,14 +66,24 @@ M1-C 自动测试已覆盖：
 
 长期 Grokking 是否发生、具体坍塌时间或 canonical run 中的候选时间点均不得成为单元测试前提。测试使用人工时间线、小模型或 fixture checkpoint，验证定义和协议而不是重现某条正式科学轨迹。
 
-## 6. M2-A 计划测试
+## 6. M2-A 已测试覆盖
 
-M2-A 仍需补齐代表坍塌 checkpoint 的离线重算与对应 scalar 对齐、pre-collapse/onset/trough/
-early-recovery/recovered 窗口选择、checkpoint 缺失处理，以及失稳中心化指标的 fixture 测试。
-这些项目在实际代码和测试通过前保持 `planned`，不得把 M1-C 的最终 checkpoint evaluator
-审计等同于全坍塌窗口真实性验证。
+M2-A 自动测试已覆盖：
 
-## 7. M2-B 测试
+- physical checkpoint、canonical state 与 branch-anchor alias 的 lineage 解析；
+- semantic state hash、相同语义去重和冲突状态拒绝；
+- exact checkpoint 与 50-step deterministic replay；
+- 两次独立 midpoint 一致性及继续到下一 manifested checkpoint 的 bridge；
+- model、optimizer、RNG、global step、parameter-group signature 与行为指标比较；
+- root/M1-B/M1-C segment ownership、parent/child boundary 和 source zero-write；
+- episode role、多角色 state、split-specific trough 和 `terminal_unrecovered`；
+- checkpoint 重算与 committed scalar 的容差对齐；
+- analysis audit 的 schema、source inventory、故障注入和失败门控。
+
+正式 M2-A audit 还现场验证了 503 个物理 checkpoint、501 个 regular state、48 个 replay
+bridge 与全部强制 episode 状态。长期 Grokking 或具体 episode step 仍不得成为单元测试前提。
+
+## 7. M2-B 已测试覆盖
 
 参数化小模数：
 
@@ -81,13 +91,19 @@ early-recovery/recovered 窗口选择、checkpoint 缺失处理，以及失稳�
 p in {2,3,5,7,8}
 ```
 
-M2-A 的 checkpoint 重算通过后，M2-B 验证中心化、Reynolds 幂等性、正交性、重构、群不变性和人工 \(\Gamma>I\) 案例。检查正确类别从干扰最大值中排除。
+M2-B 自动测试覆盖中心化、Reynolds 幂等性、正交性、重构、Pythagorean energy、群生成元
+不变性、offset profile 与 brute-force 轨道平均、`sum(g)` 和 residual projection。`Gamma/I`
+测试显式排除正确类别，覆盖 implication buffer、数值歧义和 projected split 不变量。
 
-## 8. Gate 2 测试
+同时测试 normalized tolerance、finite JSON、regular-grid crossing/run/exit 计数、FP32
+forward 与 FP64 reduction、CPU/CUDA 容差、selected tensor policy、原子 export/no-overwrite，
+以及 portable export audit 的路径、SHA、schema、冻结 M1 清单和 M3+ 禁止项。
+
+## 8. Gate 2 计划测试
 
 Gate 2 只验证 CE、WD=0.5、seed 2/3 的行为时间线、稳定性派生结果、provenance 和 lineage。不得把完整 WD 网格或 Fourier 结果提前纳入 Gate 2。
 
-## 9. M3 测试
+## 9. M3 计划测试
 
 验证 FFT/IFFT round-trip、Parseval、目标线索引、负频模索引、共轭对称性、Reynolds/Fourier 等价和 \(E_{\mathrm{line}}=1-D_{\mathrm{eq}}\)。
 

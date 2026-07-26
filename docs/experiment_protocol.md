@@ -90,15 +90,17 @@ M1-A behavior measurement: completed
 M1-B CE-reference 20000-step: completed
 M1-C CE-reference 50000-step extension: completed
 M1 overall: completed
-M2-A instability analysis: planned
-M2-B function-space analysis: planned
+M2-A instability analysis: completed
+M2-B function-space analysis: completed
+M2 overall: completed
 Gate 2 seed 2/3 replication: planned
 M3 Fourier analysis: planned
 ```
 
 Canonical CE-reference run：`20260721T045433955396Z_30c62ebc`。M1-B 的正式执行、失败重试、
 首次行为事件和审计结果见[实现与运行记录](implementation.md)。行为曲线显示反复进入和离开
-高性能区域；这些是行为层观察，坍塌窗口的逐 checkpoint 离线重算与机制解释仍为 planned。
+高性能区域；这些 M1 记录保持行为层证据身份。M2-A 已只读重算全部强制状态，M2-B 已在同一
+状态时间线上完成函数空间测量；二者仍不等于电路或优化因果解释。
 
 M1-C terminal child 为 `20260724T091041024473Z_c6434d8a`，完成至 step 50000 并通过
 `m1c-extension` 审计。首次事件仍冻结为 `t_fit=100`、`t_grok50=6050` 和
@@ -111,13 +113,15 @@ M1-C terminal child 为 `20260724T091041024473Z_c6434d8a`，完成至 step 50000
 [`results/m1_ce_reference/`](../results/m1_ce_reference/) 是 20000-step canonical run 的不可变
 M1 证据。后续工作不得覆盖、重写或重新导出替换该目录，也不得改写其中冻结的 `t_fit`、
 `t_grok50` 和 `t_grok99`。[`results/m1_ce_reference_extended/`](../results/m1_ce_reference_extended/)
-是已审计的 50000-step 延长证据，同样不得覆盖或替换。后续 M2-A 结果写入：
+是已审计的 50000-step 延长证据，同样不得覆盖或替换。已审计的 M2-A/M2-B 导出写入：
 
 ```text
-results/m2a_stability/
+results/m2_function_space/
 ```
 
-派生结果必须保留来源 run、checkpoint、scientific config hash、split hash 和生成代码 commit。
+M2 本地 replay cache 与完整 selected tensors 位于被 Git 忽略的 `analysis_runs/`；portable
+results 只保存清单、SHA、offset profile、聚合指标和图表。派生结果必须保留来源 run、
+checkpoint、scientific config hash、split hash、analysis hash 和生成代码 commit。
 
 ## M1-C：50000-step extension
 
@@ -135,39 +139,67 @@ checkpoint 窗口真实性确认或机制解释。
 
 ## M2-A：失稳真实性与坍塌窗口
 
-M2-A 先通过已有 checkpoint 离线重算确认候选坍塌是否属于真实模型状态，再比较坍塌前、谷底、
-恢复后的行为、参数尺度、optimizer 状态和 logit 尺度。稳定窗口、坍塌 episode、checkpoint
-重算、最小优化诊断和失稳中心化分析使用同一绝对 step 时间线。
+M2-A 使用三个只读 lineage segment：step 0–5000 来自 root，5000–20000 来自 M1-B child，
+20000–50000 来自 M1-C child。Resolver 现场读取三个 manifest；同 step 的物理 alias 仅在
+规范化 model、optimizer、RNG、step 和 hash 状态一致时去重。正式分析确认 503 个物理
+checkpoint 与 501 个唯一 100-step 状态，step 5000 和 20000 的 raw SHA 不同但 semantic
+state 相同。
 
-20000-step 轨迹登记以下候选 checkpoint 窗口：
+缺少 50-step checkpoint 的目标从同 segment 的前一个 100-step checkpoint 确定性 replay。
+每次 replay 独立执行两次，并继续到后继 100-step checkpoint；model、optimizer、RNG、
+parameter-group signature、global step 和行为均需与真实后继 checkpoint 一致。Replay 不写入
+任何 source run。
 
-```text
-1300–1650
-3350–4000
-5700–6200
-7250–7600
-8350–8650
-9950–10300
-12250–12800
-14150–14650
-15250–15800
-17400–17900
-18250–18850
+正式 M2-A 共验证 95 个唯一目标：47 个 exact checkpoint、48 个 replay，`unresolved=0`。
+全部 48 个 bridge 和全部行为重算通过；94 个存在 committed scalar 的状态在 reference
+evaluator 下逐字段差异为 0。`test_008` 的跨 lineage 恢复已确认；`test_010` 与
+`train_026` 在 step 50000 使用 `terminal_unrecovered`，不填充 recovery 字段。
+
+## M2-B：函数空间与群对称性
+
+M2-B 对每个唯一 100-step checkpoint 和全部强制 replay 状态计算中心化 logits、Reynolds
+offset profile、$z^\parallel$、$z^\perp$、$D_{\mathrm{eq}}$、$\Gamma$、$I$、
+$L_\parallel$、centered-logit Frobenius/RMS、prediction entropy 和 normalized margin。
+FP32 CUDA 前向按 batch 1024 执行，完整 logits 立即 offload；中心化、投影、能量、entropy
+和 quantile 在 CPU FP64 上归约。完整 logits 不沿时间线持久化。
+
+正式时间线有 549 个唯一状态，其中 501 个 regular checkpoint 和 48 个 replay。函数事件仅
+使用均匀 100-step grid：$t_{\mathrm{alg}}$ 的网格估计为 step 100，对应区间
+$(0,100]$；$t_{\mathrm{dom}}$ 到 step 50000 仍为 `not_reached`。首次事件不因持续窗口或
+replay 状态而改写。
+
+数值审计使用尺度归一化 reconstruction、orthogonality、energy identity 与 invariance error，
+并额外检查 $\sum_d g(d)\approx0$、$\Pi z^\perp\approx0$ 和 projected split 一致性。
+只有 $\Gamma>I+\epsilon$ 或 $\Gamma>\epsilon$ 时才启用对应充分条件断言；容差带标记为
+`numerically_ambiguous`。
+
+## M2 审计与导出
+
+M2 使用独立 lifecycle：
+
+```bash
+conda run --prefix ./env python -m transgrokking.cli analyze-m2 \
+  --config configs/analysis/m2_function_space.yaml
+
+conda run --prefix ./env python -m transgrokking.cli audit \
+  --run-dir analysis_runs/<analysis_id> \
+  --profile m2-function-space
+
+conda run --prefix ./env python -m transgrokking.cli export-m2 \
+  --run-dir analysis_runs/<analysis_id> \
+  --output-dir results/m2_function_space
 ```
 
-每个窗口从已有 checkpoint 中选择最接近 `pre-collapse`、`onset`、`trough`、
-`early-recovery` 和 `recovered` 的状态。若窗口或轨迹终点尚未满足恢复判据，必须明确记录
-为部分恢复或未恢复，不得虚构 `recovered` checkpoint。候选窗口只定位行为异常，不预设
-优化或函数空间机制。
+Analysis audit 先验证 source lineage、M2-A、bridge、函数数学不变量和 selected tensor
+清单；只有通过后才能原子 export。Portable export audit 再验证文件清单/SHA、schema、相对
+POSIX provenance、M1 frozen SHA 与禁止项。正式 analysis
+`20260726T185412278703Z_5337a9bb` 的两阶段 audit 均已通过。
 
-## M2-B 与 Gate 2
+## Gate 2
 
-M2-B 在共享时间线上计算 `D_eq`、`Gamma`、`I`、`L_parallel`、centered-logit Frobenius
-norm、prediction entropy、normalized margin、`t_alg` 和 `t_dom`，并叠加 M2-A 的失稳
-episode。Reynolds、中心化与函数分解的数学定义保持不变。
-
-M2-A 与 M2-B 分析管线达到稳定状态后，Gate 2 执行 `WD=0.5` 的 CE seed 2、3，仅做行为层
-与失稳统计复现。完整多 seed 与 weight-decay 网格仍属于 M4。
+Gate 2 下一步执行 `WD=0.5` 的 CE seed 2、3，仅做行为层与失稳统计复现，并复用已测试的
+checkpoint/function pipeline 做预注册指标核验。完整多 seed 与 weight-decay 网格仍属于 M4；
+Fourier 仍属于 M3。
 
 ## 停止与稳定性规则
 

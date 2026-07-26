@@ -44,12 +44,12 @@ M1 行为指标放在 `metrics/behavior.py`、`metrics/norms.py` 和 `metrics/ev
 
 M1-B 正式配置固定 `eval_interval=50`、`checkpoint_interval=100`。现有 20000-step CE-reference 及其首次事件保持冻结；延长训练不得改写 `t_fit`、`t_grok50` 或 `t_grok99`。
 
-## 5. M1-C 已实现职责与 M2-A 计划职责
+## 5. M1-C 与 M2-A 已实现职责
 
 M1-C stability metrics、最小 optimization diagnostics、instrumented child-run、审计与导出均已
 实现、测试并完成正式运行。正式 terminal child 为
-`20260724T091041024473Z_c6434d8a`；M2-A 的 checkpoint 重算和坍塌窗口真实性验证仍为
-`planned`。
+`20260724T091041024473Z_c6434d8a`。M2-A 的 checkpoint 重算、坍塌窗口真实性验证、
+deterministic replay 和 bridge audit 也已实现、测试并完成正式分析。
 
 ### Stability metrics
 
@@ -123,15 +123,31 @@ diagnostics origin。
 `results/m1_ce_reference/`。`export-m1c` 只读已通过审计的 run，以临时目录原子发布并拒绝
 覆盖已有目标。
 
-### M2-A 计划边界
+### M2-A 已实现职责
 
-M2-A 负责失稳真实性验证、代表 checkpoint 重算、坍塌窗口分析和失稳中心化分析。
-M1-C 已记录的 optimization diagnostics 可作为 M2-A 输入，但不等于 checkpoint 真实性或
-机制证据。M2-B 在 M2-A 之后开展函数空间与群对称性分析。Gate 2 只在 M2-A/M2-B 管线
-稳定后运行 CE、WD=0.5、seed 2/3 的行为层与失稳统计复现；完整多 seed 与 WD 网格仍
-属于 M4。
+`analysis/checkpoint_resolver.py` 只读解析 root、M1-B child 和 M1-C child 的 manifest，保留
+物理 checkpoint 的 raw SHA，并以稳定 parameter name、optimizer state 和 RNG 的规范摘要
+识别 branch-anchor semantic alias。正式 M2 现场确认 503 个物理 checkpoint、501 个唯一
+regular state 和 step 5000/20000 的语义等价 alias。
 
-## 6. M2-B 计划职责
+`analysis/replay.py` 按 lineage segment 从前一 100-step checkpoint 重放目标 50-step 状态，
+重复生成 midpoint 后继续到下一 manifested checkpoint 完成 bridge。Bridge 比较 model、
+optimizer、RNG、global step、parameter-group signature 和行为指标，并在前后核对 source 与
+endpoint checkpoint SHA；replay cache 只能写入 `analysis_runs/`。
+
+M2-A 已对强制 collapse state 执行离线行为重算和 committed scalar 对齐。M1-C optimization
+diagnostics 可用于描述性对齐，但不得单独解释为因果机制。未恢复 episode 保持
+`terminal_unrecovered`，不得填充 recovery 字段。
+
+## 6. M2-B 已实现职责
+
+实现路径包括：
+
+```text
+src/transgrokking/metrics/function_space.py
+src/transgrokking/metrics/audit_m2.py
+src/transgrokking/reporting/m2.py
+```
 
 完整 logits 统一 shape：
 
@@ -170,9 +186,17 @@ t_alg
 t_dom
 ```
 
-M2-B 函数保持纯函数性质。完整 logits evaluator 支持 batch size、device、dtype 和 CPU offload。关键 checkpoint 可以持久化张量，其余 checkpoint 允许离线重建。失稳 episode 必须叠加到共享函数时间线。
+M2-B 数学函数保持纯函数性质。完整 logits evaluator 使用可配置 batch size、FP32 CUDA
+forward、CPU offload 和 FP64 reduction；逐 checkpoint 流式释放 logits。正式分析覆盖 501 个
+regular state 和 48 个 replay state，关键 tensor 留在 `analysis_runs/`，Git 导出只包含 manifest、
+offset profile 和聚合结果。
 
-## 7. M3 实现职责
+M2 analysis audit 检查只读 lineage、replay bridge、行为重算与 Reynolds 不变量；portable
+export audit 再检查相对 POSIX provenance、文件 SHA、schema、冻结 M1 清单和 M3+ 禁止项。
+实际接口为 `analyze-m2`、`audit --profile m2-function-space` 和 `export-m2`。Gate 2 与 M3
+仍为 `planned`，不得由 M2 代码隐式启动。
+
+## 7. M3 计划职责
 
 统一 FFT：
 

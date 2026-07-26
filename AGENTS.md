@@ -164,6 +164,13 @@ conda run --prefix ./env python -m transgrokking.cli audit \
 conda run --prefix ./env python -m transgrokking.cli export-m1c \
   --run-dir runs/<run_id> \
   --output-dir results/m1_ce_reference_extended
+conda run --prefix ./env python -m transgrokking.cli analyze-m2 \
+  --config configs/analysis/m2_function_space.yaml
+conda run --prefix ./env python -m transgrokking.cli audit \
+  --run-dir analysis_runs/<analysis_id> --profile m2-function-space
+conda run --prefix ./env python -m transgrokking.cli export-m2 \
+  --run-dir analysis_runs/<analysis_id> \
+  --output-dir results/m2_function_space
 ```
 
 CLI 发生变化时同步更新 README、协议文档和 subprocess 测试。
@@ -255,27 +262,30 @@ audit:                 passed
 ```
 
 首次事件仍为 `t_fit=100`、`t_grok50=6050`、`t_grok99=7000`。M1-C 的
-稳定性结论属于行为层 `observed` 证据；collapse checkpoint 离线重算和机制解释仍属于
-M2-A/M2-B 的 `planned` 工作。
+稳定性结论属于行为层 `observed` 证据。M2-A 已完成 collapse checkpoint 离线重算，
+M2-B 已完成函数空间分析；这些结果仍不构成电路或干预层面的因果机制结论。
 
 ### M2：失稳验证、函数空间与群对称性
 
 #### M2-A 失稳真实性验证与坍塌窗口分析
 
-M2-A 优先回答：
+M2-A 已通过只读 checkpoint 与 replay 分析回答：
 
 - 已观察到的坍塌能否通过 checkpoint 离线重算复现；
 - 坍塌是否属于真实模型状态，而非在线记录或产物异常；
 - 坍塌前、谷底和恢复后的行为及参数尺度如何变化；
 - 坍塌是否与优化状态、parameter-group 范数或 logit 尺度同步。
 
-M2-A 复用 M1-C 已完成的 stable window、collapse episode 和最小 optimization
-diagnostics，并新增代表 checkpoint 重算、坍塌窗口真实性验证与失稳中心化分析。行为同步
-只构成待验证关系；在函数证据或因果证据建立前不得写成机制结论。
+M2-A 复用 M1-C 的 stable window、collapse episode 和最小 optimization diagnostics，
+现场解析三个 manifest，确认 503 个物理 checkpoint 和 501 个唯一 regular state。缺失的
+50-step 状态从所属 lineage segment 的前一 checkpoint 确定性重放，并继续到下一 manifested
+checkpoint 完成 bridge 验证；源 run、manifest、checkpoint 和两个 M1 results 目录始终只读。
+全部强制 episode 状态完成行为重算和 scalar 对齐，未恢复状态使用
+`terminal_unrecovered`，不得伪装为 recovery。
 
 #### M2-B 函数空间与群对称性
 
-M2-B 对应固定规范的函数空间分析阶段。
+M2-B 已按固定规范完成函数空间分析。
 
 实现完整中心化 logits：
 
@@ -301,13 +311,16 @@ D_{\mathrm{eq}}=\frac{\|z^\perp\|_2^2}{\|\widetilde z\|_2^2},
 I=\max_{a,b,c\ne y}[z^\perp(a,b,c)-z^\perp(a,b,y)].
 \]
 
-除 `D_eq`、`Gamma` 和 `I` 外，M2-B 还记录 `L_parallel`、centered-logit Frobenius norm、prediction entropy 和 normalized margin，并实现 `t_alg` 与 `t_dom`。所有失稳 episode 必须叠加到共享函数时间线。完整 logits evaluator 支持分批前向和 CPU offload。
+除 `D_eq`、`Gamma` 和 `I` 外，M2-B 还记录 `L_parallel`、centered-logit Frobenius norm、prediction entropy 和 normalized margin，并实现 `t_alg` 与 `t_dom`。全部 regular checkpoint 与强制 replay 状态已叠加到共享函数时间线。完整 logits evaluator 使用 FP32 分批前向、CPU offload 和 FP64 reduction，不持久化整条时间线的完整 logits。
 
-M2-B 验收包括中心化、幂等性、正交性、重构、群不变性、人工阈值案例和失稳 episode 时间对齐。
+M2 正式 analysis ID 为 `20260726T185412278703Z_5337a9bb`，导出位于
+`results/m2_function_space/`。分析侧 `audit/m2_analysis.json` 与 portable export 侧
+`audit/m2_export.json` 均已通过；验收覆盖中心化、幂等性、正交性、重构、群不变性、
+人工阈值案例、replay bridge、失稳 episode 对齐、source SHA 和导出 provenance。
 
 ### Gate 2：seed 2、3 行为层复现
 
-M2-A 与 M2-B 形成稳定分析管线后，执行以下独立初始化条件：
+M2-A 与 M2-B 已形成并通过审计的分析管线。Gate 2 仍为 `planned`；执行时使用以下独立初始化条件：
 
 ```text
 loss=CE
@@ -444,9 +457,9 @@ M0
 ```
 
 允许在当前阶段内完成代码、测试和 smoke。正式科学分析需要前置阶段的 run artifacts
-已通过验收。M0、M1-A、M1-B 与 M1-C 已依序完成；下一阶段门是 M2-A 的 checkpoint
-真实性复核和坍塌窗口分析。M2-A、M2-B 及其后阶段在各自代码、测试和正式分析完成前
-继续标记为 `planned`。
+已通过验收。M0、M1-A、M1-B、M1-C、M2-A 与 M2-B 已依序完成，M2 overall 已完成；
+下一阶段门是 Gate 2 的 seed 2/3 行为层复现。Gate 2、M3 及其后阶段在各自代码、测试和
+正式分析完成前继续标记为 `planned`。
 
 ## 11. 配置规则
 

@@ -10,6 +10,7 @@
 - `experiment_protocol.md`：固定配置、阶段顺序、运行矩阵、停止规则和验收。
 - `implementation.md`：代码架构、schema、工程决定和实际验证。
 - `M1-disc.md`：M1-B/M1-C 的已冻结行为证据、稳定性观察、限制与 M2 handoff。
+- `M2-disc.md`：M2 checkpoint 真实性、函数空间结果、证据等级、限制与 Gate 2 handoff。
 - `README.md`：仓库入口、当前状态和可复制命令。
 
 `M1-disc.md` 不得把行为或 optimizer 同步写成函数空间或因果机制。新增文档需要明确
@@ -81,6 +82,7 @@ collapse_onset        collapse-episode onset
 - M1-B 5000/20000-step 冻结证据与 M1-C 50000-step child-run 规则及实际完成状态；
 - `t_grok99` 后 20 个 evaluation interval 只作为首次事件后的继续训练证据；
 - `t_stable99`、稳定窗口与坍塌 episode 的长期稳定性口径；
+- M2 只读 checkpoint resolver、deterministic replay/bridge、函数空间与两阶段 audit；
 - Gate 2 seed 复制与 M4 完整多 seed/WD 网格的边界；
 - 分析 checkpoint；
 - 表征、电路和优化干预；
@@ -89,6 +91,18 @@ collapse_onset        collapse-episode onset
 - 失败、中断和结果汇总规则。
 
 正式运行前冻结协议版本并写入 metadata。
+
+M2 的稳定命令入口为：
+
+```bash
+conda run --prefix ./env python -m transgrokking.cli analyze-m2 \
+  --config configs/analysis/m2_function_space.yaml
+conda run --prefix ./env python -m transgrokking.cli audit \
+  --run-dir analysis_runs/<analysis_id> --profile m2-function-space
+conda run --prefix ./env python -m transgrokking.cli export-m2 \
+  --run-dir analysis_runs/<analysis_id> \
+  --output-dir results/m2_function_space
+```
 
 ## 7. 事实状态
 
@@ -112,14 +126,22 @@ M1-A behavior measurement: completed
 M1-B CE-reference 20000-step: completed
 M1-C CE-reference 50000-step extension: completed
 M1 overall: completed
-M2-A instability analysis: planned
-M2-B function-space analysis: planned
+M2-A instability analysis: completed
+M2-B function-space analysis: completed
+M2 overall: completed
+Gate 2 seed 2/3 replication: planned
+M3 Fourier analysis: planned
 ```
 
 M1-C terminal child 为 `20260724T091041024473Z_c6434d8a`，行为稳定性结果为
 `t_stable99: not_reached`、`final_state: recovering`。这些结果已导出到
-`results/m1_ce_reference_extended/` 并通过 `m1c-extension` audit；不得据此提前标记
-M2-A 或 M2-B 已完成。
+`results/m1_ce_reference_extended/` 并通过 `m1c-extension` audit。M2 完成状态来自独立的
+只读 checkpoint/replay/bridge 和函数空间正式分析，不是从 M1 行为结果外推。
+
+M2 analysis ID 为 `20260726T185412278703Z_5337a9bb`，正式导出位于
+`results/m2_function_space/`。`analysis_runs/<analysis_id>/audit/m2_analysis.json` 与
+`results/m2_function_space/audit/m2_export.json` 均已通过。M1 frozen directories 保持
+逐字节只读；M2 的观察不得越级写成 Fourier、表征、电路或干预结论。
 
 ## 8. 决策记录
 
@@ -170,7 +192,9 @@ Git commit
 
 M1-C 已完成记录必须区分 20000-step canonical parent 与 50000-step terminal child，保留
 首次事件不变，并明确 optimization diagnostics 只覆盖 extension 的 20050–50000 step。
-下一阶段门是 M2-A 的代表 collapse checkpoint 离线重算。
+M2 已完成记录必须绑定 analysis ID、source lineage、503/501 checkpoint 现场计数、48 个
+replay bridge、两阶段 audit 和 portable export。下一阶段门是 Gate 2 的 CE、WD=0.5、
+seed 2/3 行为层复现；Gate 2 与 M3 保持 `planned`。
 
 ## 11. 完成条件
 

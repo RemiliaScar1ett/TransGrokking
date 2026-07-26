@@ -53,8 +53,10 @@ optimizer 记录层的 `observed` 结果，不构成 checkpoint 函数真实性�
 
 ## 5. M2-A 坍塌窗口报告
 
-M2-A 仍为 `planned`。它必须在代表 checkpoint 上离线重算行为与函数量，不能把 M1-C 的
-scalar-derived episode 或最终 checkpoint 审计直接当作每个坍塌窗口的真实性证据。
+M2-A 已完成正式 checkpoint 真实性验证。分析 ID 为
+`20260726T185412278703Z_5337a9bb`；结果导出到 `results/m2_function_space/m2a/`。报告读取
+全部物理 checkpoint、canonical state、alias、episode role 和 replay bridge，源 run、manifest、
+checkpoint 与两个 M1 results 目录保持只读。
 
 ### 代表窗口
 
@@ -84,13 +86,14 @@ recovered
 
 ### 跨事件对齐
 
-M2-A 需要生成 collapse depth、recovery duration、relative-event aligned curves，并按
-pre-collapse、onset、trough、early-recovery、recovered 对齐。尚未恢复的 episode 必须与
-完整 episode 分开汇总。
+M2-A 报告已生成 collapse depth、recovery duration 和 relative-event aligned 证据，并按
+pre-collapse、onset、split-specific trough、recovery start、recovery confirmed 与
+post-recovery 对齐。尚未恢复的 `test_010`、`train_026` 及对应 joint 状态使用
+`terminal_unrecovered`，与完整 episode 分开汇总。
 
 ## 6. M2-B 函数空间分析
 
-生成：
+M2-B 已完成完整函数时间线、群对称性指标、episode 对齐和图表导出。生成：
 
 ```text
 D_eq
@@ -104,9 +107,17 @@ t_alg
 t_dom
 ```
 
-第一张机制图在共享时间轴展示 \(\Gamma_t\)、\(I_t\)、\(D_{\mathrm{eq}}(t)\) 与 train/test accuracy。图中标注首次行为事件、稳定窗口、坍塌 episode 和函数事件。M2-B 不得把行为层同步变化直接表述为机制因果。
+共享时间轴图展示 `Gamma`、`I`、`D_eq` 与 train/test accuracy，并标注首次行为事件、
+稳定窗口、坍塌 episode 和函数事件。正式导出包含 501 个 regular state 与 48 个 replay
+state，不平滑、不插值。M2-B 不得把行为层同步变化直接表述为机制因果。
 
-## 7. Gate 2 多 seed 行为层复现
+分析侧 `analysis_runs/<analysis_id>/audit/m2_analysis.json` 与 portable export 侧
+`results/m2_function_space/audit/m2_export.json` 是两道独立验收。前者验证 lineage、
+checkpoint/replay/bridge、行为重算、Reynolds 数学不变量和 selected tensor；后者验证文件
+清单、SHA、schema、相对 POSIX provenance、冻结 M1 清单及不存在 M3+ 产物。两份正式
+audit 均已通过。
+
+## 7. Gate 2 多 seed 行为层复现（planned）
 
 在 M2-A 与 M2-B 形成稳定分析管线后，对 CE、WD=0.5、seed 2/3 生成行为与失稳统计。跨 seed 比较同时采用：
 
@@ -116,7 +127,7 @@ t_dom
 
 不得只按绝对 step 直接平均。Gate 2 不包含完整 WD 网格，也不替代 M4 的函数空间、Fourier 和全矩阵汇总。
 
-## 8. M3 分析
+## 8. M3 分析（planned）
 
 至少包含：
 
