@@ -48,6 +48,7 @@ data/
 
 # Training outputs
 runs/
+analysis_runs/
 artifacts/
 checkpoints/
 snapshots/

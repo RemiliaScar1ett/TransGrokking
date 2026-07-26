@@ -1,4 +1,4 @@
-"""Stable command-line entry points for M0 and M1."""
+"""Stable command-line entry points for training and staged analysis."""
 
 from __future__ import annotations
 
@@ -68,6 +68,10 @@ def _audit(args: argparse.Namespace) -> int:
         from transgrokking.metrics.audit_m1c import audit_m1c_extension
 
         result = audit_m1c_extension(args.run_dir)
+    elif args.profile == "m2-function-space":
+        from transgrokking.metrics.audit_m2 import audit_m2_analysis
+
+        result = audit_m2_analysis(args.run_dir)
     else:
         result = audit_m1_ce_reference(args.run_dir)
     print(json.dumps(result, indent=2, ensure_ascii=False, allow_nan=False))
@@ -80,8 +84,25 @@ def _export_m1c(args: argparse.Namespace) -> int:
     return 0
 
 
+def _analyze_m2(args: argparse.Namespace) -> int:
+    from transgrokking.analysis.config import load_m2_analysis_config
+    from transgrokking.analysis.runner import run_m2_analysis
+
+    output = run_m2_analysis(load_m2_analysis_config(args.config))
+    print(output)
+    return 0
+
+
+def _export_m2(args: argparse.Namespace) -> int:
+    from transgrokking.reporting.m2 import export_m2_results
+
+    output = export_m2_results(args.run_dir, args.output_dir)
+    print(output)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
-    """Build the M0/M1 command parser."""
+    """Build the project command parser."""
     parser = argparse.ArgumentParser(prog="transgrokking")
     subparsers = parser.add_subparsers(dest="command", required=True)
     doctor = subparsers.add_parser("doctor")
@@ -106,7 +127,7 @@ def build_parser() -> argparse.ArgumentParser:
     audit.add_argument("--run-dir", required=True)
     audit.add_argument(
         "--profile",
-        choices=("m1-ce-reference", "m1c-extension"),
+        choices=("m1-ce-reference", "m1c-extension", "m2-function-space"),
         default="m1-ce-reference",
     )
     audit.set_defaults(handler=_audit)
@@ -114,6 +135,13 @@ def build_parser() -> argparse.ArgumentParser:
     export_m1c.add_argument("--run-dir", required=True)
     export_m1c.add_argument("--output-dir", required=True)
     export_m1c.set_defaults(handler=_export_m1c)
+    analyze_m2 = subparsers.add_parser("analyze-m2")
+    analyze_m2.add_argument("--config", required=True)
+    analyze_m2.set_defaults(handler=_analyze_m2)
+    export_m2 = subparsers.add_parser("export-m2")
+    export_m2.add_argument("--run-dir", required=True)
+    export_m2.add_argument("--output-dir", required=True)
+    export_m2.set_defaults(handler=_export_m2)
     return parser
 
 

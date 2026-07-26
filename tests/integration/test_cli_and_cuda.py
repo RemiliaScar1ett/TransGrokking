@@ -10,7 +10,11 @@ import pytest
 import torch
 import yaml
 
+from transgrokking.analysis.evaluator import full_table_logits
+from transgrokking.analysis.replay import replay_checkpoint_bridge
 from transgrokking.config import config_from_dict, load_config
+from transgrokking.data import generate_modular_addition
+from transgrokking.metrics.function_space import function_space_metrics
 from transgrokking.training.artifacts import (
     load_manifest,
     load_optimization_records,
@@ -322,3 +326,55 @@ def test_fresh_cuda_cli_sets_determinism_before_first_cuda_call(tmp_path: Path) 
     assert resumed.returncode == 0, resumed.stderr
     resumed_run = Path(resumed.stdout.strip().splitlines()[-1])
     assert json.loads((resumed_run / "status.json").read_text(encoding="utf-8"))["global_step"] == 2
+
+
+@pytest.mark.cuda
+def test_m2_cuda_forward_replay_and_fp64_reduction(tmp_path: Path) -> None:
+    configure_reproducibility(1, True)
+    report = collect_doctor_report()
+    errors = validate_doctor_report(report, True, "NVIDIA GeForce RTX 4060 Laptop GPU", 8)
+    if errors:
+        pytest.skip("target RTX 4060 Laptop GPU 8GB unavailable: " + "; ".join(errors))
+    raw = load_config("configs/smoke.yaml").to_dict()
+    raw["optimization"].update({"device": "cuda:0", "max_steps": 2})
+    raw["hardware"]["formal_run"] = True
+    raw["logging"].update(
+        {
+            "runs_dir": str(tmp_path / "m2-cuda-runs"),
+            "eval_interval": 1,
+            "checkpoint_interval": 1,
+        }
+    )
+    config = config_from_dict(raw)
+    run_dir = train(config)
+    source = run_dir / "checkpoints" / "step_000000.pt"
+    endpoint = run_dir / "checkpoints" / "step_000002.pt"
+    bridge = replay_checkpoint_bridge(
+        source,
+        endpoint,
+        config,
+        1,
+        device="cuda:0",
+        repeats=2,
+    )
+    assert bridge.endpoint_comparisons
+    assert all(comparison.equal for comparison in bridge.endpoint_comparisons)
+    assert bridge.source_checkpoint_unchanged
+    assert bridge.endpoint_checkpoint_unchanged
+
+    data = generate_modular_addition(
+        config.task.modulus,
+        config.task.train_fraction,
+        config.task.split_seed,
+    )
+    model = build_model(config).to("cuda:0", dtype=torch.float32)
+    model.load_state_dict(bridge.midpoint.checkpoint_payload["model_state"])
+    torch.cuda.reset_peak_memory_stats("cuda:0")
+    logits = full_table_logits(model, data.inputs, config.task.modulus, batch_size=8)
+    result = function_space_metrics(logits, data.train_indices, data.test_indices)
+    assert logits.device.type == "cpu" and logits.dtype == torch.float32
+    assert result.centered_logits.device.type == "cpu"
+    assert result.centered_logits.dtype == torch.float64
+    assert result.metrics["invariants_passed"] is True
+    assert torch.cuda.max_memory_allocated("cuda:0") > 0
+    assert torch.cuda.max_memory_reserved("cuda:0") > 0
