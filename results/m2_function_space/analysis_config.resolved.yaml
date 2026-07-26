@@ -1,0 +1,46 @@
+schema_version: 1
+profile: m2-function-space
+source_run_ids:
+  root: 20260721T045021566841Z_ef3ee07b
+  canonical_parent: 20260721T045433955396Z_30c62ebc
+  terminal_child: 20260724T091041024473Z_c6434d8a
+source_result_dirs:
+  m1_reference: results/m1_ce_reference
+  m1_extended: results/m1_ce_reference_extended
+device: cuda:0
+expected_device: NVIDIA GeForce RTX 4060 Laptop GPU
+expected_vram_gb: 8
+analysis_batch_size: 1024
+cpu_reduction_dtype: float64
+persist_selected_logits: true
+selected_tensor_steps:
+- 0
+- 100
+- 300
+- 5850
+- 6050
+- 6150
+- 7000
+- 7100
+- 11000
+- 18350
+- 20000
+- 21300
+- 21400
+- 27300
+- 31400
+- 49950
+- 50000
+selected_tensor_export_limit_mib: 100
+math_tolerances:
+  centering_atol: 1.0e-10
+  reconstruction_rtol: 1.0e-10
+  orthogonality_normalized: 1.0e-10
+  energy_identity_rtol: 1.0e-10
+  invariance_rtol: 1.0e-10
+  implication_margin_atol: 1.0e-10
+behavior_validation_atol: 1.0e-06
+behavior_validation_rtol: 1.0e-06
+replay_enabled: true
+replay_temp_dir: temp/m2_replay
+analysis_runs_dir: analysis_runs

@@ -1,0 +1,449 @@
+{
+  "schema_version": 1,
+  "analysis_id": "20260726T185412278703Z_5337a9bb",
+  "export_limit_mib": 100,
+  "total_size": 264880360,
+  "tensors": [
+    {
+      "step": 0,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_000000.npz",
+      "sha256": "8b9dce6dad81c187d03f738bb1b90463aefb43614c4bc416998bf5a12fe593b4",
+      "size": 15614604,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "exact_checkpoint",
+      "run_id": "20260721T045021566841Z_ef3ee07b",
+      "checkpoint_sha256": "2297918fa4949b889be5f11271c588327938a2fe85ed95189eab870e236e787e",
+      "semantic_state_sha256": "a905b04ac06e7e2c1e955281e70ab9149fc8110a97e4a8ed8889a51b8c1b2666",
+      "replay_source_step": null,
+      "replay_updates": 0,
+      "state_roles": [
+        "protocol:initialization"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_000000.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 100,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_000100.npz",
+      "sha256": "4728dfd30270f8e970d244af93f723ac279cde91e5cccc8ec7ce7188da353f44",
+      "size": 15833821,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "exact_checkpoint",
+      "run_id": "20260721T045021566841Z_ef3ee07b",
+      "checkpoint_sha256": "69c107b90568a0aad18a71a455c668dea9533c7ca5e9bff43c06b431e4fb26e0",
+      "semantic_state_sha256": "d8706bde9e8af61a32f2c77b6ad590df13b15aac0179c5caad7899e000435a73",
+      "replay_source_step": null,
+      "replay_updates": 0,
+      "state_roles": [
+        "event:t_fit"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_000100.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 300,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_000300.npz",
+      "sha256": "f7a094280c8d0efe6251f5ae19e6abb28f231fc810682fe9c5e02edd4e6890e9",
+      "size": 15777357,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "exact_checkpoint",
+      "run_id": "20260721T045021566841Z_ef3ee07b",
+      "checkpoint_sha256": "d04badaa809e988ca93515a933a1a59a55c49e416c653d444cdbd834ac11cde3",
+      "semantic_state_sha256": "66be832aab13063e6d9c378a8735e04ee6d2dd503c3262f72cdf361ac9e4a8cf",
+      "replay_source_step": null,
+      "replay_updates": 0,
+      "state_roles": [
+        "event:t_fit_detected_at"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_000300.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 5850,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_005850.npz",
+      "sha256": "4d06c75c613b9cae937314c43568a91762b5d565ce75c1a1dae1e84c88c49854",
+      "size": 15537696,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "deterministic_replay",
+      "run_id": "20260721T045433955396Z_30c62ebc",
+      "checkpoint_sha256": "f00c717f836eea8e8d3058e2fd161254b1187a80a7a36b832cb7959d2dace03f",
+      "semantic_state_sha256": "de29ad642b0605fd3e5d5a2b672842b3d754cf14ee5bfd47b2de8d5c7fe6ad8e",
+      "replay_source_step": 5800,
+      "replay_updates": 50,
+      "state_roles": [
+        "protocol:pre_grokking_instability"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_005850.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 6050,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_006050.npz",
+      "sha256": "66746f1c7c9cccbb3e5670619c03d886a922672501c0386f988c1c2e953c48a8",
+      "size": 15647945,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "deterministic_replay",
+      "run_id": "20260721T045433955396Z_30c62ebc",
+      "checkpoint_sha256": "5daa2a05f7c03ab693c106a4f69eab7da5a49c6cdd8100848cbc8f1500fc37f0",
+      "semantic_state_sha256": "babb95bc0269533707e06fab2672461911e36680a8a0a71ce8593450db3edd84",
+      "replay_source_step": 6000,
+      "replay_updates": 50,
+      "state_roles": [
+        "event:t_grok50"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_006050.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 6150,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_006150.npz",
+      "sha256": "f677a846e5d2f3d0793492aaf7c97e09ad8832773827ac58b5c047715b38922d",
+      "size": 15612863,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "deterministic_replay",
+      "run_id": "20260721T045433955396Z_30c62ebc",
+      "checkpoint_sha256": "79509f93c253d8d19baa4f8f840bfc0e132c2c86fe7af56d24bd9d3ead982bc5",
+      "semantic_state_sha256": "3225dc284449d5ca37e9ffa9fb4ce2f487eca18e523f2e7b5b1285b5aeb40ba9",
+      "replay_source_step": 6100,
+      "replay_updates": 50,
+      "state_roles": [
+        "event:t_grok50_detected_at"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_006150.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 7000,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_007000.npz",
+      "sha256": "d8ebf21eb90d2b8629eed3321e83545b051bcc52b02739b77ad66f04ede2ce18",
+      "size": 15515384,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "exact_checkpoint",
+      "run_id": "20260721T045433955396Z_30c62ebc",
+      "checkpoint_sha256": "524ce670e93e352216049f513dd0651e6f7f750be05902505f3fe4efe176d207",
+      "semantic_state_sha256": "e3ab9d6566373f3153f919443052d373a14ed84bc8c40e053a17193cf21c56db",
+      "replay_source_step": null,
+      "replay_updates": 0,
+      "state_roles": [
+        "event:t_grok99"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_007000.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 7100,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_007100.npz",
+      "sha256": "aff439e5d87fc9774914dcd3c3b2717c12804ca1156c7662f29293a23545f76c",
+      "size": 15513730,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "exact_checkpoint",
+      "run_id": "20260721T045433955396Z_30c62ebc",
+      "checkpoint_sha256": "78f05a709376b28d51f59d111ae5f9ef47c9165f77962ca18866ca9a85387c93",
+      "semantic_state_sha256": "31c04b0c7ae3b1304faa87afd9630be27d274222387a96bc9840ac2ccb2cc58e",
+      "replay_source_step": null,
+      "replay_updates": 0,
+      "state_roles": [
+        "event:t_grok99_detected_at"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_007100.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 11000,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_011000.npz",
+      "sha256": "080684d3c314b76e2f8449ca48253aef622e96f9b2763b8c92b29962b022c13a",
+      "size": 15608519,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "exact_checkpoint",
+      "run_id": "20260721T045433955396Z_30c62ebc",
+      "checkpoint_sha256": "e5aa8c02329899e624f4fedfbd9bf0983c351cbcb07fb3e3851d6c39d0512896",
+      "semantic_state_sha256": "ca15c005cb69cb40f607c91de21eb8fb8b2074edf15d2d5e06c5211bad286a67",
+      "replay_source_step": null,
+      "replay_updates": 0,
+      "state_roles": [
+        "protocol:high_performance_control"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_011000.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 18350,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_018350.npz",
+      "sha256": "19b65ce0d8cd09b1370d61c74280a9c08e944bc84f2d6431c2b1fa296a4f4800",
+      "size": 15581534,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "deterministic_replay",
+      "run_id": "20260721T045433955396Z_30c62ebc",
+      "checkpoint_sha256": "8bbdd50184cbb81435ae63bcabad26a1999977c253132cf2984b4daf54a2d7f5",
+      "semantic_state_sha256": "92330eff69870c5c25d1f0113477b2d5881a35e9dd1d703cf5942acea87ca8ad",
+      "replay_source_step": 18300,
+      "replay_updates": 50,
+      "state_roles": [
+        "joint_008:onset",
+        "joint_008:test_trough",
+        "joint_008:train_trough",
+        "test_008:onset",
+        "test_008:test_trough"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_018350.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 20000,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_020000.npz",
+      "sha256": "173cb36184ab2bc9d63ae68a8520bc0c75801dbd3863a02fd821a61d3c6ca023",
+      "size": 15512613,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "exact_checkpoint",
+      "run_id": "20260721T045433955396Z_30c62ebc",
+      "checkpoint_sha256": "7d3ee179b44e6bf7c97880cd1ce3bbf2025d27451afd508f13f913d0b01e647a",
+      "semantic_state_sha256": "1b451678915326f92c9f4ffdf6e493d7647c74e452900430d238e41d49e5cf77",
+      "replay_source_step": null,
+      "replay_updates": 0,
+      "state_roles": [
+        "lineage:m1b_m1c_anchor"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_020000.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 21300,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_021300.npz",
+      "sha256": "a66a519dbe38c70f08db74f6cdee6573853847ead9f1f3001771d0ca333797b2",
+      "size": 15569288,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "exact_checkpoint",
+      "run_id": "20260724T091041024473Z_c6434d8a",
+      "checkpoint_sha256": "b86e484ce7858c69da4321d28fc3af9ee8af3aac25911cfe703773380ddcb499",
+      "semantic_state_sha256": "1b006cf959a449fd08d31e93ba434783d608b8ce08b321ddcc7a82785f91b9e0",
+      "replay_source_step": null,
+      "replay_updates": 0,
+      "state_roles": [
+        "joint_008:test_recovery_start",
+        "test_008:test_recovery_start"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_021300.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 21400,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_021400.npz",
+      "sha256": "134af72eada2be3171ea763a4d2afbada8a77fde76b8213b7078de9ed656fa27",
+      "size": 15570025,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "exact_checkpoint",
+      "run_id": "20260724T091041024473Z_c6434d8a",
+      "checkpoint_sha256": "f487badd1d1b0616607e4dab7be2b22f9ab483eeb98d9a6fc481d36bb5acb553",
+      "semantic_state_sha256": "c182e74f90b396da50c52a32081e3a56bc441cbb98bae46580f7d70cb98b069d",
+      "replay_source_step": null,
+      "replay_updates": 0,
+      "state_roles": [
+        "joint_008:test_recovery_confirmed",
+        "test_008:test_recovery_confirmed"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_021400.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 27300,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_027300.npz",
+      "sha256": "a32218d7e31e403ca55e7cb6ee0d086cd382d3c0b464741411db408be4aad28a",
+      "size": 15738041,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "exact_checkpoint",
+      "run_id": "20260724T091041024473Z_c6434d8a",
+      "checkpoint_sha256": "8c6056cb942c3b9a0521863b9825e143f64a2af798cd73aa750c7d0fea4f7758",
+      "semantic_state_sha256": "3d730aca7bc06701856ddad04e7fbb943740a3463cd550323b2b639384fcaa72",
+      "replay_source_step": null,
+      "replay_updates": 0,
+      "state_roles": [
+        "joint_010:onset",
+        "test_010:onset"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_027300.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 31400,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_031400.npz",
+      "sha256": "a23b329347c50c66c1bb2b2a11fea48473db3b6f7fd5dd2b3a542889e70aad28",
+      "size": 14849784,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "exact_checkpoint",
+      "run_id": "20260724T091041024473Z_c6434d8a",
+      "checkpoint_sha256": "f20cc13d1dd4a5495139bdd959735e5efd62a09a66766d8aa141ad1fad6a2f3f",
+      "semantic_state_sha256": "38bd3a1bf3138f13638919975d66ce06be0d8f11f1124bab6f437a5c603b83cf",
+      "replay_source_step": null,
+      "replay_updates": 0,
+      "state_roles": [
+        "joint_010:test_trough",
+        "joint_010:train_trough",
+        "test_010:test_trough"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_031400.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 49950,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_049950.npz",
+      "sha256": "cc69bb9788dcc8496280ca85f300a47674456354392673c7c0c75d615941dbf4",
+      "size": 15694991,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "deterministic_replay",
+      "run_id": "20260724T091041024473Z_c6434d8a",
+      "checkpoint_sha256": "d51acbf6645f21dcd8a2dffe82349a64081cef29a9dd6e0c254b5c0e0c28185e",
+      "semantic_state_sha256": "148b6605b0700844c0b60cac22887a4f44dabf7e7955140385b1d9f80e47f95e",
+      "replay_source_step": 49900,
+      "replay_updates": 50,
+      "state_roles": [
+        "train_026:onset",
+        "train_026:train_trough"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_049950.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    },
+    {
+      "step": 50000,
+      "path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_050000.npz",
+      "sha256": "15717681a7b91bc84d99ee8a4f04259a6f0e77f39504f9d7c40c53bc270be0df",
+      "size": 15702165,
+      "shape": [
+        97,
+        97,
+        97
+      ],
+      "raw_dtype": "torch.float32",
+      "reduction_dtype": "torch.float64",
+      "state_source": "exact_checkpoint",
+      "run_id": "20260724T091041024473Z_c6434d8a",
+      "checkpoint_sha256": "59ca2965f9c512021173341d59e7861fa64979d84e9579d4e454c9cc6040fd7c",
+      "semantic_state_sha256": "7d45625ddef613a78ec125ed36a7394eeae94d98f30a62d0d5b80c3939cbf9e9",
+      "replay_source_step": null,
+      "replay_updates": 0,
+      "state_roles": [
+        "joint_010:terminal_unrecovered",
+        "protocol:terminal",
+        "test_010:terminal_unrecovered",
+        "train_026:terminal_unrecovered"
+      ],
+      "source_path": "analysis_runs/20260726T185412278703Z_5337a9bb/selected_tensors/step_050000.npz",
+      "exported": false,
+      "storage_scope": "analysis_run_local"
+    }
+  ],
+  "source_manifest_sha256": "5995e4b63bc845f42593bb295cc2b1df2e6207b8338b2fefc2b1ee7384e7c442",
+  "full_tensors_exported": false,
+  "exported_total_size": 0
+}

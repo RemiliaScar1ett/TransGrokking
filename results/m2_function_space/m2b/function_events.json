@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "summary_grid": "regular_manifest_checkpoint_grid",
+  "regular_step_count": 501,
+  "regular_interval_steps": 100,
+  "event_resolution_steps": 100,
+  "first_regular_step": 0,
+  "last_regular_step": 50000,
+  "t_alg": {
+    "status": "reached",
+    "event_step": 100,
+    "previous_regular_step": 0,
+    "event_resolution_steps": 100,
+    "event_interval": {
+      "lower_exclusive": 0,
+      "upper_inclusive": 100
+    }
+  },
+  "t_dom": {
+    "status": "not_reached",
+    "event_step": null,
+    "previous_regular_step": null,
+    "event_resolution_steps": 100,
+    "event_interval": {
+      "lower_exclusive": null,
+      "upper_inclusive": null
+    }
+  },
+  "gamma_positive_run_count": 5,
+  "gamma_false_to_true_crossing_count": 5,
+  "gamma_true_to_false_exit_count": 4,
+  "longest_gamma_positive_window_steps": 32600,
+  "fraction_gamma_positive": 0.9900199600798403,
+  "last_gamma_positive_exit_step": 40800,
+  "dominance_positive_run_count": 0,
+  "dominance_false_to_true_crossing_count": 0,
+  "dominance_true_to_false_exit_count": 0,
+  "longest_dominance_window_steps": 0,
+  "fraction_dominant": 0.0,
+  "last_dominance_exit_step": null,
+  "behavior_alignment": {
+    "state_count": 549,
+    "prediction_exact_state_count": 540,
+    "batch_sensitive_prediction_state_count": 8,
+    "uncommitted_initialization_state_count": 1,
+    "regular_batch_sensitive_prediction_state_count": 8
+  }
+}

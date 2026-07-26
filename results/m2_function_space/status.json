@@ -1,0 +1,21 @@
+{
+  "analysis_status": "completed",
+  "m2a_status": "completed",
+  "m2b_status": "completed",
+  "export_status": "ready",
+  "schema_version": 1,
+  "updated_at": "2026-07-26T19:03:16.538350+00:00",
+  "analysis_id": "20260726T185412278703Z_5337a9bb",
+  "analysis_config_hash": "5337a9bb82bd3192f8d3e64f7ebf327a436651d2b3785a73f81cf33d879c6ba7",
+  "current_stage": "completed",
+  "m2a_target_count": 95,
+  "m2a_replay_target_count": 48,
+  "m2a_role_reference_count": 181,
+  "function_metric_count": 549,
+  "regular_function_metric_count": 501,
+  "selected_tensor_count": 17,
+  "completed_at": "2026-07-26T18:59:11.585059+00:00",
+  "max_memory_allocated": 231535104,
+  "max_memory_reserved": 329252864,
+  "analysis_audit_passed": true
+}
